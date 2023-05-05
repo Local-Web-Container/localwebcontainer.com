@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <title>ClientMyAdmin</title>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
+  <link rel='stylesheet' href='/clientmyadmin/style.css'>
+</head>
+<body>
+  <center>
+    <h1>Downloading zip file</h1>
+    <progress></progress>
+    <p></p>
+    <script type="module">
+      import kv from '/clientmyadmin/shared/kv.js'
+      import {parseGithubURL} from '/clientmyadmin/shared/itty-github-parser.js'
+
+      const progress = document.querySelector('progress')
+      const p = document.querySelector('p')
+      const url = new URL(location.href)
+      let from = url.searchParams.get('installFrom')
+      const xhr = new XMLHttpRequest()
+      const commingFrom = 'https://github.com/Local-Web-Container/daily-fail/pull/13' || document.referrer
+      const pr = new URLPattern('https://github.com/:user/:repo/pull/:n')
+      const blob = new URLPattern('https://github.com/:user/:repo/blob/:version/:path*')
+
+      url.searchParams.delete('installFrom')
+
+      // http://localhost:4444/clientmyadmin/installfrom.html?installFrom=referrer
+      if (from === 'referrer') {
+        if (!commingFrom) {
+          p.innerText = `can't install, document.referrer is empty`
+        } else if (!commingFrom.startsWith('https://github.com/')) {
+          p.innerText = `can't install, document.referrer is not https://github.com`
+        } else {
+          const r = await parseGithubURL(commingFrom)
+
+          if (r.filepath && location.pathname === '/') {
+            history.replaceState(null, null, r.filepath)
+          }
+          from = `gh/${r.user}/${r.repo}@${r.branch}`
+        }
+      }
+
+      // Clear kv storage to remove zip file and root directory
+      await kv('clear')
+
+      // advertise the new url to top domain
+      document.cookie = `${location.hostname}=cma;domain=${location.hostname.split('.').slice(-2).join('.')};expires=;SameSite=strict;Secure;path=/`
+
+      if (from.startsWith('gh/')) {
+        const res = await fetch('https://data.jsdelivr.com/v1/package/' + from)
+        const json = await res.json()
+        if (!res.ok) {
+          p.innerText = json.message
+          await new Promise(() => {})
+        }
+        await kv('put', { type: 'jsdelivr', root: from }, 'root')
+        location.href = url
+        await new Promise(() => {})
+      }
+
+      xhr.open('GET', from)
+      xhr.responseType = 'blob'
+
+      xhr.onprogress = evt => {
+        if (evt.lengthComputable) {
+          progress.value = evt.loaded / evt.total * 100
+        } else {
+          p.innerText = `Downloaded ${evt.loaded.toLocaleString()} bytes`
+        }
+      }
+
+      xhr.onerror = async (evt) => {
+        p.innerHTML = `Error: unable to establish connection to:<br><a href="${from}">${from}</a>`
+        fetch(from, { mode: 'no-cors' }).then(() => {
+          p.innerHTML += `<br>The server seems to be reachable. Perhaps it's a <a href="https://enable-cors.org">CORS</a> issue?`
+        }, err => {
+          p.innerHTML += `<br>Likely a network/connection error.`
+        })
+      }
+
+      xhr.onload = async () => {
+        const blob = xhr.response
+        if (xhr.status === 200) {
+          p.innerText = 'Download complete, storing file...'
+          kv('put', blob, 'zip-file').then((r) => {
+            p.innerText = 'Stored the file in indexedDB...'
+            location.href = url
+          })
+        } else {
+          p.innerText = `Error: ${xhr.status} ${xhr.statusText} ${await blob.text()}`
+        }
+      }
+      xhr.send()
+    </script>
+  </center>
+</body>
+</html>

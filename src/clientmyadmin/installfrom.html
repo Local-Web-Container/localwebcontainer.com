@@ -13,14 +13,14 @@
     <p></p>
     <script type="module">
       import kv from '/clientmyadmin/shared/kv.js'
-      import {parseGithubURL} from '/clientmyadmin/shared/itty-github-parser.js'
+      import { parseGithubURL } from '/clientmyadmin/shared/itty-github-parser.js'
 
       const progress = document.querySelector('progress')
       const p = document.querySelector('p')
       const url = new URL(location.href)
       let from = url.searchParams.get('installFrom')
       const xhr = new XMLHttpRequest()
-      const commingFrom = 'https://github.com/Local-Web-Container/daily-fail/pull/13' || document.referrer
+      const comingFrom = from || document.referrer
       const pr = new URLPattern('https://github.com/:user/:repo/pull/:n')
       const blob = new URLPattern('https://github.com/:user/:repo/blob/:version/:path*')
 
@@ -28,12 +28,12 @@
 
       // http://localhost:4444/clientmyadmin/installfrom.html?installFrom=referrer
       if (from === 'referrer') {
-        if (!commingFrom) {
+        if (!comingFrom) {
           p.innerText = `can't install, document.referrer is empty`
-        } else if (!commingFrom.startsWith('https://github.com/')) {
+        } else if (!comingFrom.startsWith('https://github.com/')) {
           p.innerText = `can't install, document.referrer is not https://github.com`
         } else {
-          const r = await parseGithubURL(commingFrom)
+          const r = await parseGithubURL(comingFrom)
 
           if (r.filepath && location.pathname === '/') {
             history.replaceState(null, null, r.filepath)
@@ -72,7 +72,7 @@
       }
 
       xhr.onerror = async (evt) => {
-        p.innerHTML = `Error: unable to establish connection to:<br><a href="${from}">${from}</a>`
+        p.innerHTML = `Error: unable to establish connection to:<br>${from.link(from)}`
         fetch(from, { mode: 'no-cors' }).then(() => {
           p.innerHTML += `<br>The server seems to be reachable. Perhaps it's a <a href="https://enable-cors.org">CORS</a> issue?`
         }, err => {

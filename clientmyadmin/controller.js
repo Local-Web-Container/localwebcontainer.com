@@ -7,7 +7,10 @@ const Alpine = Alpine_
 const { quota, usage, usageDetails = {} } = await navigator.storage?.estimate() || {}
 const { self: clientId, clients } = await fetch('/clientmyadmin/clients').then(r => r.json())
 
-const APPLICATION_KEYS = {"privateKey":"AulTcVxJuSeJjiDpadUjmjTigFVeZV1nw75NpxYkubI","publicKey":"BH6poH0k7sCu7STw8BelDa38OE-gnLoHK2HzF63-DJ_qQDDFijQpDiKmvAbjbLFLThJ196cx_0lNDqMfMR9Lg0Y"}
+// const APPLICATION_KEYS = {
+//   privateKey: 'AulTcVxJuSeJjiDpadUjmjTigFVeZV1nw75NpxYkubI',
+//   publicKey: 'BH6poH0k7sCu7STw8BelDa38OE-gnLoHK2HzF63-DJ_qQDDFijQpDiKmvAbjbLFLThJ196cx_0lNDqMfMR9Lg0Y'
+// }
 
 const pushPermission = await navigator.permissions.query({
   name: 'push',
@@ -15,20 +18,20 @@ const pushPermission = await navigator.permissions.query({
 })
 
 const geoPermission = await navigator.permissions.query({
-  name: 'geolocation',
+  name: 'geolocation'
 })
 
 const notificationPermission = await navigator.permissions.query({
-  name: 'notifications',
+  name: 'notifications'
 })
 
-const swReg = globalThis.swReg = await navigator.serviceWorker.ready;
-const sub = await swReg.pushManager.getSubscription()
-console.log(sub)
-window.onclick = async () => await swReg.pushManager.subscribe({
-  userVisibleOnly: false, // a chrome requirement...
-  applicationServerKey: APPLICATION_KEYS.publicKey
-})
+// const swReg = globalThis.swReg = await navigator.serviceWorker.ready;
+// const sub = await swReg.pushManager.getSubscription()
+// console.log(sub)
+// window.onclick = async () => await swReg.pushManager.subscribe({
+//   userVisibleOnly: false, // a chrome requirement...
+//   applicationServerKey: APPLICATION_KEYS.publicKey
+// })
 
 let permissions = Alpine.reactive({
   push: pushPermission.state,

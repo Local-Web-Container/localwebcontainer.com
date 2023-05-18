@@ -9,17 +9,15 @@
 <body>
   <center>
     <h1>Well, this is annoying...</h1>
-    <p>You need to grant us privilege to read the root directory</p>
+    <p id="$p">You need to grant us privilege to read the root directory</p>
     <p>Click the button below to grant us permission</p>
-    <button autofocus>Prompt</button>
+    <button id="$btn" autofocus>Prompt</button>
     <script type="module">
-      const btn = document.querySelector('button')
-      const kvP = import('https://localwebcontainer.com/clientmyadmin/shared/kv.js')
-      btn.onclick = async () => {
-        const kv = await kvP
-        const root = await kv.default('get', 'root')
-        await root.requestPermission({ mode: 'read' })
-        location.reload()
+      import kv from 'https://localwebcontainer.com/clientmyadmin/shared/kv.js'
+      const root = await kv.default('get', 'root')
+
+      $btn.onclick = async () => {
+        root.requestPermission({ mode: 'read' }).then(location.reload)
       }
     </script>
   </center>

@@ -16,9 +16,8 @@
       import kv from 'https://localwebcontainer.com/clientmyadmin/shared/kv.js'
       const root = await kv('get', 'root')
 
-      $btn.onclick = async () => {
-        root.requestPermission({ mode: 'read' }).then(location.reload)
-      }
+      $btn.onclick = () => root.requestPermission({ mode: 'read' })
+        .then(() => location.reload())
     </script>
   </center>
 </body>

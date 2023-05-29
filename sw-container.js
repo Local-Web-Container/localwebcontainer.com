@@ -1,5 +1,4 @@
 import { Router } from './itty-router.js'
-import { httpPlugin } from './http-resolver.js'
 import sw from './extern.js'
 import kv from './clientmyadmin/shared/kv.js'
 import fsa from './clientmyadmin/shared/fs.js'
@@ -127,7 +126,7 @@ async function init () {
 async function _import (url, opts) {
   // if (cache.has(url)) return cache.get(url)
   await (p ??= init())
-  const { build } = await shimport(base + '/esbuild.min.js')
+  const { build, httpPlugin } = await shimport(base + '/esbuild.min.js')
   const options = {
     entryPoints: [url],
     format: 'esm',
@@ -135,7 +134,7 @@ async function _import (url, opts) {
     // format: 'iife',
     globalName: 'xyz',
     sourcemap: true,
-    bundle: true,
+    // bundle: true,
     plugins: [ httpPlugin ],
     ...opts
   }

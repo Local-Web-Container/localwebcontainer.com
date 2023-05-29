@@ -14,7 +14,7 @@
     <button id="$btn" autofocus>Prompt</button>
     <script type="module">
       import kv from 'https://localwebcontainer.com/clientmyadmin/shared/kv.js'
-      const root = await kv.default('get', 'root')
+      const root = await kv('get', 'root')
 
       $btn.onclick = async () => {
         root.requestPermission({ mode: 'read' }).then(location.reload)

@@ -262,17 +262,6 @@ class Entry {
 }
 
 /**
- * Get a BigInt 64 from a DataView
- *
- * @param {DataView} view a dataview
- * @param {number} position the position
- * @param {boolean} littleEndian whether this uses littleEndian encoding
- */
-function getBigInt64 (view, position, littleEndian = false) {
-  return view.getBigInt64(position, littleEndian)
-}
-
-/**
  * @param {Blob} file
  */
 async function * Reader (file) {
@@ -319,7 +308,7 @@ async function * Reader (file) {
     const signature = dv.getUint32(0, true) // 4 bytes
     const diskWithZip64CentralDirStart = dv.getUint32(4, true) // 4 bytes
     const relativeOffsetEndOfZip64CentralDir = Number(
-      getBigInt64(dv, 8, true)
+      dv.getBigInt64(8, true)
     ) // 8 bytes
     const numberOfDisks = dv.getUint32(16, true) // 4 bytes
 
@@ -329,9 +318,9 @@ async function * Reader (file) {
     // const diskNumber = dv.getUint32(16, true)
     // const diskWithCentralDirStart = dv.getUint32(20, true)
     // const centralDirRecordsOnThisDisk = dv.getBigInt64(24, true)
-    fileslength = Number(getBigInt64(dv, 32, true))
-    centralDirSize = Number(getBigInt64(dv, 40, true))
-    centralDirOffset = Number(getBigInt64(dv, 48, true))
+    fileslength = Number(dv.getBigInt64(32, true))
+    centralDirSize = Number(dv.getBigInt64(40, true))
+    centralDirOffset = Number(dv.getBigInt64(48, true))
   }
 
   if (centralDirOffset < 0 || centralDirOffset >= file.size) {

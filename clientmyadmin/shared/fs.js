@@ -10,7 +10,7 @@ async function findHandle (root, path) {
     return root
   }
 
-  const name = path.shift()
+  const name = /** @type {string} */ (path.shift())
 
   if (root.kind === 'directory') {
     const handle = await root.getDirectoryHandle(name).catch(err => {
@@ -20,6 +20,7 @@ async function findHandle (root, path) {
         throw err
       }
     })
+
     return findHandle(handle, path)
   }
 

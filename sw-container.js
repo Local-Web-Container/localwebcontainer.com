@@ -58,10 +58,10 @@ function isPlainObject (o) {
 
 const origFetch = globalThis.fetch
 /** @return {Promise<Response>} */
-globalThis.fetch = async function fetch(...a) {
-  if (!(a[0] instanceof Request)) return fetch(new Request(...a))
-  if (a[0].url.startsWith(origin)) {
-    const pathname = new URL(a[0].url).pathname.replace(/^\/+/, '')
+globalThis.fetch = async function fetch(request) {
+  if (!(request instanceof Request)) return fetch(new Request(...arguments))
+  if (request.url.startsWith(origin)) {
+    const pathname = new URL(request.url).pathname.replace(/^\/+/, '')
     /** @type {Map<string, Entry|File>} */
     const entries = new Map()
     const x = await kv('get', 'root')
@@ -71,18 +71,18 @@ globalThis.fetch = async function fetch(...a) {
     }
     if (root) {
       globalThis.x = root
-      const x = await root.queryPermission({ mode: 'read' })
-      if (x === 'prompt') return fetch(`${base}/clientmyadmin/allowread.html`)
-      let p = ''
+      const permission = await root.queryPermission({ mode: 'read' })
+      if (permission === 'prompt') return fetch(`${base}/clientmyadmin/allowread.html`)
+      let path = ''
       try {
-        p = decodeURIComponent(pathname)
+        path = decodeURIComponent(pathname)
       } catch (e) {
         return new Response('Not Found.', {
           status: 404,
           statusText: 'Not found',
         })
       }
-      const handle = await fsa.open(root, p)
+      const handle = await fsa.open(root, path)
       if (handle.kind === 'file') {
         return handle.getFile().then(renderFile)
       } else {
@@ -105,8 +105,8 @@ globalThis.fetch = async function fetch(...a) {
       ? renderFile(entry)
       : renderTreeList(entries)
   }
-  return caches.match(a[0]).then(res => {
-    return res || origFetch(a[0])
+  return caches.match(request[0]).then(res => {
+    return res || origFetch(request[0])
   })
 }
 
@@ -227,20 +227,17 @@ router.all('/functions/*', async ctx => {
 router.all(o =>
   o.request.destination === 'document' &&
   o.url.pathname.toLowerCase().endsWith('.md'),
-  _ => fetch(`${base}/clientmyadmin/markdown.html`)
+  ctx => fetch(`${base}/clientmyadmin/markdown.html`)
 )
 
 router.all(o =>
   o.request.destination === 'document' &&
   o.url.pathname.toLowerCase().endsWith('.json'),
-  _ => fetch(`${base}/clientmyadmin/json.html`)
+  ctx => fetch(`${base}/clientmyadmin/json.html`)
 )
 
 // All url that ain't for this subdomain should make a normal request
-router.all({}, async ctx => {
-  // return new Response('hej')
-  return fetch(ctx.request)
-})
+router.all({}, ctx => fetch(ctx.request))
 
 // A generic error handler
 function errorHandler (error) {

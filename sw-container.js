@@ -58,10 +58,10 @@ function isPlainObject (o) {
 
 const origFetch = globalThis.fetch
 /** @return {Promise<Response>} */
-globalThis.fetch = async function fetch(request) {
-  if (!(request instanceof Request)) return fetch(new Request(...arguments))
-  if (request.url.startsWith(origin)) {
-    const pathname = new URL(request.url).pathname.replace(/^\/+/, '')
+globalThis.fetch = async function fetch(...a) {
+  if (!(a[0] instanceof Request)) return fetch(new Request(...a))
+  if (a[0].url.startsWith(origin)) {
+    const pathname = new URL(a[0].url).pathname.replace(/^\/+/, '')
     /** @type {Map<string, Entry|File>} */
     const entries = new Map()
     const x = await kv('get', 'root')
@@ -71,25 +71,32 @@ globalThis.fetch = async function fetch(request) {
     }
     if (root) {
       globalThis.x = root
-      const permission = await root.queryPermission({ mode: 'read' })
-      if (permission === 'prompt') return fetch(`${base}/clientmyadmin/allowread.html`)
-      let path = ''
+      const x = await root.queryPermission({ mode: 'read' })
+      if (x === 'prompt') return fetch(`${base}/clientmyadmin/allowread.html`)
+      let p = ''
       try {
-        path = decodeURIComponent(pathname)
+        p = decodeURIComponent(pathname)
       } catch (e) {
         return new Response('Not Found.', {
           status: 404,
           statusText: 'Not found',
         })
       }
-      const handle = await fsa.open(root, path)
-      if (handle.kind === 'file') {
-        return handle.getFile().then(renderFile)
-      } else {
-        for await (const [name, entry] of handle) {
-          entries.set(`${pathname}/${name}`.replace(/^\//, ''), entry)
+      try {
+        const handle = await fsa.open(root, p)
+        if (handle.kind === 'file') {
+          return handle.getFile().then(renderFile)
+        } else {
+          for await (const [name, entry] of handle) {
+            entries.set(`${pathname}/${name}`.replace(/^\//, ''), entry)
+          }
+          return renderTreeList(entries)
         }
-        return renderTreeList(entries)
+      } catch (e) {
+        return new Response('Not Found.', {
+          status: 404,
+          statusText: 'Not found',
+        })
       }
     }
 
@@ -105,8 +112,8 @@ globalThis.fetch = async function fetch(request) {
       ? renderFile(entry)
       : renderTreeList(entries)
   }
-  return caches.match(request[0]).then(res => {
-    return res || origFetch(request[0])
+  return caches.match(a[0]).then(res => {
+    return res || origFetch(a[0])
   })
 }
 
@@ -122,7 +129,7 @@ async function init () {
   })
 }
 
-// A simple js + ts bundler with remote http resolver FTW!
+// A simple ts bundler with remote http resolver FTW!
 async function _import (url, opts) {
   // if (cache.has(url)) return cache.get(url)
   await (p ??= init())
@@ -227,17 +234,20 @@ router.all('/functions/*', async ctx => {
 router.all(o =>
   o.request.destination === 'document' &&
   o.url.pathname.toLowerCase().endsWith('.md'),
-  ctx => fetch(`${base}/clientmyadmin/markdown.html`)
+  _ => fetch(`${base}/clientmyadmin/markdown.html`)
 )
 
 router.all(o =>
   o.request.destination === 'document' &&
   o.url.pathname.toLowerCase().endsWith('.json'),
-  ctx => fetch(`${base}/clientmyadmin/json.html`)
+  _ => fetch(`${base}/clientmyadmin/json.html`)
 )
 
 // All url that ain't for this subdomain should make a normal request
-router.all({}, ctx => fetch(ctx.request))
+router.all({}, async ctx => {
+  // return new Response('hej')
+  return fetch(ctx.request)
+})
 
 // A generic error handler
 function errorHandler (error) {

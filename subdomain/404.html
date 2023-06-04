@@ -25,7 +25,6 @@
         // Allays install the service worker first
         navigator.serviceWorker.register(url, {
             scope: '/',
-            // type: 'module',
             updateViaCache: 'none'
         }).then(() => location.reload(), err => {
             p.innerText = `Error: ${err.message}`

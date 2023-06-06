@@ -310,7 +310,7 @@ router.get(o =>
     const options = {
       entryPoints: [ctx.request.url],
       minify: true,
-      // sourcemap: true,
+      sourcemap: true,
       // bundle: true,
       plugins: [ httpPlugin ],
     }

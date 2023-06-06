@@ -6,7 +6,14 @@ import mime from './clientmyadmin/mime/mod.js'
 import readzip, { Entry } from './clientmyadmin/shared/zip64/read.js'
 import getDir from 'native-file-system-adapter/src/getOriginPrivateDirectory.js'
 import jsdelivr from 'native-file-system-adapter/src/adapters/jsdelivr.js'
+import postcss from 'postcss'
+import postcssNested from 'postcss-nested'
+
 import { shimport } from './shimport.js'
+
+// const autoprefixer = require('autoprefixer')
+// const postcss = require('postcss')
+// const postcssNested = require('postcss-nested')
 
 const { hasOwn } = Object
 
@@ -157,17 +164,32 @@ async function _import (url, opts) {
 const router = Router()
 let root
 
-router.all('*', async (ctx) => {
+router.all('*', o => {
+  // return true
+}, ctx => {
   ctx.headers
 })
 
 router.get(o => ['script', 'worker'].includes(o.request.destination), ctx => {
-  if (ctx.request.url.endsWith('.ts')) {
+  const ext = ctx.request.url.split('.').pop()
+  if (['jsx', 'ts', 'tsx'].includes(ext)) {
     return _import(ctx.request.url).then(str => new Response(str, {
       headers: { 'content-type': 'application/javascript' }
     }))
   }
 })
+
+
+
+// router.get(o => ['script', 'worker'].includes(o.request.destination), ctx => {
+//   const ext = ctx.request.url.split('.').pop()
+//   if (['jsx', 'ts', 'tsx'].includes(ext)) {
+//     console.log('dah')
+//     return _import(ctx.request.url).then(str => new Response(str, {
+//       headers: { 'content-type': 'application/javascript' }
+//     }))
+//   }
+// })
 
 // Just to render install page upon specifying 'installFrom'
 router.get(o => o.url.searchParams.get('installFrom'), async (ctx) => {
@@ -241,6 +263,72 @@ router.all(o =>
   o.request.destination === 'document' &&
   o.url.pathname.toLowerCase().endsWith('.json'),
   _ => fetch(`${base}/clientmyadmin/json.html`)
+)
+
+
+router.get(o =>
+  o.request.destination === 'style',
+  async ctx => {
+
+    // const { napi, Environment } = await shimport('https://cdn.jsdelivr.net/npm/napi-wasm')
+    // const importObject = { env: napi };
+    // const res = fetch('https://cdn.jsdelivr.net/npm/lightningcss-wasm@1.20.0/lightningcss_node.wasm')
+    // const { instance } = await WebAssembly.instantiateStreaming(res, importObject)
+    // const lightningcss = new Environment(instance).exports
+
+    // const css = await fetch(ctx.request).then(res => res.text())
+    // const ab = await fetch(ctx.request).then(res => res.arrayBuffer())
+    // console.time('lightningcss')
+    // let {code, map} = lightningcss.transform({
+    //   filename: 'style.css',
+    //   code: new Uint8Array(ab),
+    //   minify: true,
+    //   sourceMap: false,
+    //   drafts: {
+    //     nesting: true,
+    //     customMedia: true
+    //   }
+    // })
+
+    // console.timeEnd('lightningcss')
+    // console.log('lightningcss !')
+
+    // console.time('postcss')
+    // const result = await postcss([ postcssNested ])
+    //   .process(css, {
+    //     from: ctx.request.url,
+    //     to: 'dest/app.css',
+    //     // generate a sourcemap
+    //     map: {
+    //       inline: true
+    //     }
+    //   })
+    // console.timeEnd('postcss')
+
+    await (p ??= init())
+    const { build, httpPlugin } = await shimport(base + '/esbuild.min.js')
+    const options = {
+      entryPoints: [ctx.request.url],
+      minify: true,
+      // sourcemap: true,
+      // bundle: true,
+      plugins: [ httpPlugin ],
+    }
+
+    // console.time('esbuild')
+    const result2 = await build(options)
+    // console.timeEnd('esbuild')
+    const esbuildCSS = new TextDecoder().decode(result2.outputFiles[0].contents)
+    // console.log('sizes', {
+    //   css: new Blob([css]).size,
+    //   lightningcss: new Blob([code]).size,
+    //   postcss: new Blob([result.css]).size,
+    //   esbuild: new Blob([esbuildCSS]).size
+    // })
+    return new Response(esbuildCSS, {
+      headers: { 'content-type': 'text/css' }
+    })
+  }
 )
 
 // All url that ain't for this subdomain should make a normal request

@@ -11,8 +11,8 @@ async function findHandle (root, path) {
   }
 
   const name = /** @type {string} */ (path.shift())
-
-  if (root.kind === 'directory') {
+  console.log('root.kind', root.kind)
+  if (await root.kind === 'directory') {
     const handle = await root.getDirectoryHandle(name).catch(err => {
       if (err.name === 'TypeMismatchError') {
         return root.getFileHandle(name)
@@ -63,7 +63,7 @@ async function * walkHandleRecursive (source) {
   yield source
   console.log(source.kind)
   if (source.kind === 'directory') {
-    for await (const [name, child] of source) {
+    for await (const [name, child] of await source.entries()) {
       yield * walkHandleRecursive(child)
     }
   }
@@ -74,7 +74,7 @@ async function * walkHandleRecursive (source) {
  * @param {FileSystemDirectoryHandle | FileSystemFileHandle} source
  */
 async function emptyDir (source) {
-  for await (const [name, handle] of source) {
+  for await (const [name, handle] of await source.entries()) {
     await handle.remove({ recursive: true })
   }
   return source

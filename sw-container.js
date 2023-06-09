@@ -6,10 +6,34 @@ import mime from './clientmyadmin/mime/mod.js'
 import readzip, { Entry } from './clientmyadmin/shared/zip64/read.js'
 import getDir from 'native-file-system-adapter/src/getOriginPrivateDirectory.js'
 import jsdelivr from 'native-file-system-adapter/src/adapters/jsdelivr.js'
-import postcss from 'postcss'
-import postcssNested from 'postcss-nested'
+import crossOrigion from './clientmyadmin/cross-origion.js'
+// import postcss from 'postcss'
+// import postcssNested from 'postcss-nested'
 
 import { shimport } from './shimport.js'
+
+Response.json ??= function (o) {
+  return new Response(JSON.stringify(o), {
+    headers: { 'content-type': 'application/json' }
+  })
+}
+
+let target = `es${ new Date().getFullYear() - 2 }`
+
+const chromeVersion = navigator.userAgentData
+  ?.brands.find(e => e.brand === 'Chromium')
+  ?.version
+
+const firefoxVersion = navigator.userAgent.match(/Firefox\/([0-9]+)\./)?.[1]
+const safariVersion = navigator.userAgent.match(/Version\/(\d+)\.\d+ Safari/)?.[1]
+
+if (chromeVersion) {
+  target = 'chrome' + chromeVersion
+} else if (firefoxVersion) {
+  target = 'firefox' + firefoxVersion
+} else if (safariVersion) {
+  target = 'safari' + safariVersion
+}
 
 // const autoprefixer = require('autoprefixer')
 // const postcss = require('postcss')
@@ -76,9 +100,10 @@ globalThis.fetch = async function fetch(...a) {
     if (root?.type === 'jsdelivr') {
       root = await getDir(jsdelivr, root.root)
     }
+
     if (root) {
       globalThis.x = root
-      const x = await root.queryPermission({ mode: 'read' })
+      const x = await root.queryPermission?.({ mode: 'read' })
       if (x === 'prompt') return fetch(`${base}/clientmyadmin/allowread.html`)
       let p = ''
       try {
@@ -88,6 +113,29 @@ globalThis.fetch = async function fetch(...a) {
           status: 404,
           statusText: 'Not found',
         })
+      }
+      if (root.type === 'client') {
+        const client = await sw.clients.get(root.root)
+        if (!client) {
+          await kv('delete', 'root')
+          return Response.redirect(`/clientmyadmin/?client-not-found`)
+        }
+        const mc = new MessageChannel()
+        client.postMessage({
+          cmd: 'open', path: p, port: mc.port1
+        }, [mc.port1])
+        const evt = await new Promise(rs => mc.port2.onmessage = rs)
+        const data = evt.data
+        if (data instanceof File) {
+          return renderFile(data)
+        } else if (data instanceof Error) {
+          return new Response(data.message, {
+            status: 500,
+            statusText: 'Internal Server Error',
+          })
+        } else {
+          return renderTreeList(new Map(data))
+        }
       }
       try {
         const handle = await fsa.open(root, p)
@@ -100,6 +148,7 @@ globalThis.fetch = async function fetch(...a) {
           return renderTreeList(entries)
         }
       } catch (e) {
+        console.log(e)
         return new Response('Not Found.', {
           status: 404,
           statusText: 'Not found',
@@ -149,6 +198,7 @@ async function _import (url, opts) {
     globalName: 'xyz',
     sourcemap: true,
     // bundle: true,
+    target,
     plugins: [ httpPlugin ],
     ...opts
   }
@@ -269,7 +319,7 @@ router.all(o =>
 router.get(o =>
   o.request.destination === 'style',
   async ctx => {
-
+    console.log([...ctx.request.headers])
     // const { napi, Environment } = await shimport('https://cdn.jsdelivr.net/npm/napi-wasm')
     // const importObject = { env: napi };
     // const res = fetch('https://cdn.jsdelivr.net/npm/lightningcss-wasm@1.20.0/lightningcss_node.wasm')
@@ -311,6 +361,7 @@ router.get(o =>
       entryPoints: [ctx.request.url],
       minify: true,
       sourcemap: true,
+      target,
       // bundle: true,
       plugins: [ httpPlugin ],
     }
@@ -325,6 +376,7 @@ router.get(o =>
     //   postcss: new Blob([result.css]).size,
     //   esbuild: new Blob([esbuildCSS]).size
     // })
+    console.log('esbuild !', esbuildCSS)
     return new Response(esbuildCSS, {
       headers: { 'content-type': 'text/css' }
     })
@@ -371,6 +423,12 @@ const t = (evt, fn) => evt.waitUntil(fn().catch(console.error))
 sw.onactivate = evt => t(evt, () => sw.clients.claim())
 sw.onmessage = async evt => {
   const { data, ports } = evt
+
+  if (data === 'unload') {
+    kv('delete', 'root')
+    root = null
+  }
+
   if (data !== 'claimMe') return
 
   t(evt, async () => {

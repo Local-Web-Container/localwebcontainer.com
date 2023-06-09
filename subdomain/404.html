@@ -16,18 +16,24 @@
 </center>
 <script type="module">
     const p = document.querySelector('p')
-    if (!navigator.serviceWorker || !navigator.serviceWorker.register) {
+    const reg = await navigator.serviceWorker.getRegistration()
+    if (reg) {
+        location.reload()
+    } else if (!navigator.serviceWorker || !navigator.serviceWorker.register) {
         p.innerHTML = 'Service Workers are not supported in this browser.';
         document.querySelector('progress').remove()
     } else {
         const url = location.href.includes('localhost') ? '/sw-dev.js' : '/clientmyadmin-sw.js'
-
+        console.log(url)
         // Allays install the service worker first
         navigator.serviceWorker.register(url, {
             scope: '/',
             updateViaCache: 'none'
-        }).then(() => location.reload(), err => {
+        }).then(() => {
+            location.reload()
+        }, err => {
             p.innerText = `Error: ${err.message}`
+            console.log(err)
         })
     }
 </script>

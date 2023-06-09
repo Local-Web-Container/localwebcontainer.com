@@ -29,7 +29,17 @@
       <details>
         <summary>Choose a local folder as the root</summary>
         <button id="pick">Select a local folder</button>
-        <p>(or drag 'n drop one folder here...)<br>psst, dropping not supported yet</p>
+        <p id="dropzone">
+          (drag 'n drop one folder here...)<br>
+        </p>
+        <div id="warning" hidden>
+          <p>⚠️ This browser does not support the native file system access ⚠️</p>
+          <p>
+            The folder handle will <b>not</b> be stored in the browser IndexedDB.<br>
+            This page must remain open for this to work.
+          </p>
+          <a href="/" target="_blank">Open up a new tab</a>
+        </div>
       </details>
     </fieldset>
   </form>

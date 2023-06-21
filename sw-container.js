@@ -12,6 +12,10 @@ import crossOrigion from './clientmyadmin/cross-origion.js'
 
 import { shimport } from './shimport.js'
 
+// pointless identity template literal tag to get syntax highlighting in VSCode
+const html = (str, ...val) => str.reduce((acc, str, i) => acc + str + (val[i] ?? ''), '')
+
+// Polyfill for Response.json
 Response.json ??= function (o) {
   return new Response(JSON.stringify(o), {
     headers: { 'content-type': 'application/json' }
@@ -34,10 +38,6 @@ if (chromeVersion) {
 } else if (safariVersion) {
   target = 'safari' + safariVersion
 }
-
-// const autoprefixer = require('autoprefixer')
-// const postcss = require('postcss')
-// const postcssNested = require('postcss-nested')
 
 const { hasOwn } = Object
 
@@ -63,7 +63,7 @@ sw.addEventListener('install', () => {
   caches.open('v1').then(cache =>
     cache.addAll([
       'https://sindresorhus.com/github-markdown-css/github-markdown.css',
-      // base + '/esbuild.wasm',
+      base + '/esbuild.wasm',
       base + '/clientmyadmin/index.html',
       base + '/clientmyadmin/json.html',
       base + '/clientmyadmin/style.css',
@@ -84,27 +84,26 @@ function isPlainObject (o) {
   prot = ctor.prototype
   if (isObject(prot) === false) return false
   return hasOwn(prot, 'isPrototypeOf')
-};
-
+}
 
 const origFetch = globalThis.fetch
 /** @return {Promise<Response>} */
-globalThis.fetch = async function fetch(...a) {
-  if (!(a[0] instanceof Request)) return fetch(new Request(...a))
-  if (a[0].url.startsWith(origin)) {
-    const pathname = new URL(a[0].url).pathname.replace(/^\/+/, '')
+globalThis.fetch = async function fetch(...args) {
+  // recusive loopback
+  if (!(args[0] instanceof Request)) return fetch(new Request(...args))
+
+  if (args[0].url.startsWith(origin)) {
+    const pathname = new URL(args[0].url).pathname.replace(/^\/+/, '')
     /** @type {Map<string, Entry|File>} */
     const entries = new Map()
-    const x = await kv('get', 'root')
-    root ??= x
+    root ??= await kv('get', 'root')
     if (root?.type === 'jsdelivr') {
       root = await getDir(jsdelivr, root.root)
     }
 
     if (root) {
-      globalThis.x = root
-      const x = await root.queryPermission?.({ mode: 'read' })
-      if (x === 'prompt') return fetch(`${base}/clientmyadmin/allowread.html`)
+      const permission = await root.queryPermission?.({ mode: 'read' })
+      if (permission === 'prompt') return fetch(`${base}/clientmyadmin/allowread.html`)
       let p = ''
       try {
         p = decodeURIComponent(pathname)
@@ -168,8 +167,8 @@ globalThis.fetch = async function fetch(...a) {
       ? renderFile(entry)
       : renderTreeList(entries)
   }
-  return caches.match(a[0]).then(res => {
-    return res || origFetch(a[0])
+  return caches.match(args[0]).then(res => {
+    return res || origFetch(args[0])
   })
 }
 
@@ -186,6 +185,12 @@ async function init () {
 }
 
 // A simple ts bundler with remote http resolver FTW!
+/**
+ *
+ * @param {string} url
+ * @param {*} opts
+ * @returns {Promise<Uint8Array>}
+ */
 async function _import (url, opts) {
   // if (cache.has(url)) return cache.get(url)
   await (p ??= init())
@@ -208,7 +213,7 @@ async function _import (url, opts) {
   console.groupEnd()
 
   const result = await build(options)
-  return new TextDecoder().decode(result.outputFiles[0].contents)
+  return result.outputFiles[0].contents
 }
 
 const router = Router()
@@ -220,14 +225,52 @@ router.all('*', o => {
   ctx.headers
 })
 
-router.get(o => ['script', 'worker'].includes(o.request.destination), ctx => {
-  const ext = ctx.request.url.split('.').pop()
-  if (['jsx', 'ts', 'tsx'].includes(ext)) {
-    return _import(ctx.request.url).then(str => new Response(str, {
-      headers: { 'content-type': 'application/javascript' }
-    }))
+
+
+router.get(o =>
+  ctx => ['script', 'worker'].includes(ctx.request.destination),
+  async ctx => {
+    const ext = ctx.request.url.split('.').pop()
+
+
+
+    if (ext === 'css' && ctx.request.destination === 'script') {
+      await (p ??= init())
+      const { build, httpPlugin } = await shimport(base + '/esbuild.min.js')
+      const options = {
+        entryPoints: [ctx.request.url],
+        minify: true,
+        sourcemap: false,
+        target,
+        plugins: [ httpPlugin ],
+        // @import should not be allowed in CSS modules?
+        // https://github.com/WICG/construct-stylesheets/issues/119#issuecomment-588352418
+        bundle: false,
+      }
+
+      const result = await build(options)
+      const esbuildCSS = new TextDecoder().decode(result.outputFiles[0].contents)
+
+      return new Response(`
+        const sheet = new CSSStyleSheet()
+        await sheet.replace(${JSON.stringify(esbuildCSS)}, {
+          baseURL: ${JSON.stringify(ctx.request.url)}
+        })
+        export default sheet
+      `, {
+        headers: { 'content-type': 'text/javascript' }
+      })
+    }
+
+    if (['jsx', 'ts', 'tsx'].includes(ext)) {
+      const uint8 = await _import(ctx.request.url)
+      const res = new Response(uint8, {
+        headers: { 'content-type': 'text/javascript' }
+      })
+      return res
+    }
   }
-})
+)
 
 
 
@@ -272,9 +315,9 @@ router.get('/clientmyadmin/clients', async o => {
 })
 
 // Redirect all clientmyadmin/* request to top domain being matched on subdomain
-router.get(o =>
-  o.request.destination === 'document' &&
-  o.request.url.includes('/clientmyadmin/inspector'),
+router.get(evt =>
+  evt.request.destination === 'document' &&
+  evt.request.url.includes('/clientmyadmin/inspector'),
   ctx => fetch(`${base}/clientmyadmin/inspector.html`)
 )
 
@@ -287,8 +330,8 @@ router.get(location.origin + '/clientmyadmin/*', ctx => {
 const singleton = {}
 
 // All url that ain't for this subdomain should make a normal request
-router.all('/functions/*', async ctx => {
-  const url = new URL(ctx.url.pathname, location.origin)
+router.all('/functions/*', async evt => {
+  const url = new URL(evt.url.pathname, location.origin)
   const path = url.toString()
   let module
   if (url.pathname.endsWith('.ts')) {
@@ -297,21 +340,21 @@ router.all('/functions/*', async ctx => {
   } else {
     module = await shimport(path)
   }
-  let method = ctx.request.method
+  let method = evt.request.method
   method = method[0].toUpperCase() + method.slice(1).toLowerCase()
   const fn = module[`onRequest${method}`]
-  return fn?.(ctx)
+  return fn?.(evt)
 })
 
-router.all(o =>
-  o.request.destination === 'document' &&
-  o.url.pathname.toLowerCase().endsWith('.md'),
+router.all(evt =>
+  evt.request.destination === 'document' &&
+  evt.url.pathname.toLowerCase().endsWith('.md'),
   _ => fetch(`${base}/clientmyadmin/markdown.html`)
 )
 
-router.all(o =>
-  o.request.destination === 'document' &&
-  o.url.pathname.toLowerCase().endsWith('.json'),
+router.all(evt =>
+  evt.request.destination === 'document' &&
+  evt.url.pathname.toLowerCase().endsWith('.json'),
   _ => fetch(`${base}/clientmyadmin/json.html`)
 )
 
@@ -319,7 +362,6 @@ router.all(o =>
 router.get(o =>
   o.request.destination === 'style',
   async ctx => {
-    console.log([...ctx.request.headers])
     // const { napi, Environment } = await shimport('https://cdn.jsdelivr.net/npm/napi-wasm')
     // const importObject = { env: napi };
     // const res = fetch('https://cdn.jsdelivr.net/npm/lightningcss-wasm@1.20.0/lightningcss_node.wasm')
@@ -376,7 +418,7 @@ router.get(o =>
     //   postcss: new Blob([result.css]).size,
     //   esbuild: new Blob([esbuildCSS]).size
     // })
-    console.log('esbuild !', esbuildCSS)
+
     return new Response(esbuildCSS, {
       headers: { 'content-type': 'text/css' }
     })
@@ -397,6 +439,10 @@ function errorHandler (error) {
   })
 }
 
+/**
+ * Convert anything to a response
+ * @return {Response}
+ */
 function convertToResponse (thing) {
   if (thing instanceof Response) return thing
   if (typeof thing === undefined) {
@@ -440,20 +486,17 @@ sw.onmessage = async evt => {
 function renderTreeList(entries) {
   // render a list of files that can be opened
   const files = Array.from(entries.keys()).sort()
-  const html = `<!DOCTYPE html>
+  const str = html`<!DOCTYPE html>
     <html>
       <head>
         <meta charset="utf-8">
         <meta name='viewport' content='width=device-width, initial-scale=1'>
         <link rel="stylesheet" href="/clientmyadmin/style.css">
-        <style>
-          body {
-            margin: 20px;
-            max-width: initial;
-          }
-        </style>
+        <script type="module" src="/clientmyadmin/prompt.js"></script>
+        <style>body { margin: 20px; max-width: initial; }</style>
       </head>
       <body>
+        <h1>Files</h1>
         <ul>
           ${files.map(file => {
             return entries.get(file).crc32
@@ -463,14 +506,19 @@ function renderTreeList(entries) {
         </ul>
       </body>
     </html>`
-  return new Response(html, {
+
+  return new Response(str, {
     headers: { 'content-type': 'text/html' },
     status: 404,
     statusText: 'Not found'
   })
 }
 
-function load(str) {
+/**
+ * @param {Uint8Array} uint8
+ */
+function load(uint8) {
+  const str = new TextDecoder().decode(uint8)
   const body = `${str}; \n return xyz`
   const mod = new Function(body)()
   const result = mod?.default || mod

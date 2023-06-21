@@ -60,6 +60,7 @@ async function getSandboxHandle (entry) {
 
 /** @return {Promise<number>} */
 async function getDate(entry) {
+  console.log(entry)
   const metadata = await entry.getMetadataAsync()
   return +metadata.modificationTime
 }

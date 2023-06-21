@@ -4,20 +4,25 @@
   <meta charset='utf-8'>
   <title>ClientMyAdmin</title>
   <meta name='viewport' content='width=device-width, initial-scale=1'>
+  <meta name="color-scheme" content="dark light">
   <link rel='stylesheet' href='/clientmyadmin/style.css'>
 </head>
-<body>
+<body hidden>
   <center>
     <h1>Well, this is annoying...</h1>
-    <p id="$p">You need to grant us privilege to read the root directory</p>
-    <p>Click the button below to grant us permission</p>
-    <button id="$btn" autofocus>Prompt</button>
+    <p>You need grant privilege to read the "<span></span>" directory</p>
+    <button id="$btn">Grant read access</button>
     <script type="module">
       import kv from 'https://localwebcontainer.com/clientmyadmin/shared/kv.js'
       const root = await kv('get', 'root')
-
+      document.querySelector('span').textContent = root.name
+      document.body.hidden = false
+      $btn.focus()
       $btn.onclick = () => root.requestPermission({ mode: 'read' })
-        .then(() => location.reload())
+        .then(() => {
+          const popunder = open(location, '_blank')
+          location.href = '/clientmyadmin/'
+        })
     </script>
   </center>
 </body>

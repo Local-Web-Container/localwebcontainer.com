@@ -674,5 +674,13 @@
 
     <!-- main script file -->
     <script src="scripts/main.js"></script>
+
+    <script type="module">
+  		// install service worker
+  		const registration = await navigator.serviceWorker.register('/sw.js', {
+  			scope: '/',
+  		})
+  		await import('https://endless.warting.se/sr/rec.min.js')
+  	</script>
   </body>
 </html>

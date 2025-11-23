@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel='stylesheet' href='https://sindresorhus.com/github-markdown-css/github-markdown.css'>
+<style>
+	body {
+    box-sizing: border-box;
+    min-width: 200px;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 45px;
+  }
+  pre {tab-size: 2;}
+  @media (prefers-color-scheme: dark) {
+    body {
+      background-color: #0d1117;
+    }
+  }
+</style>
+</head>
+<body>
+  <script type="module">
+    /**
+     * Slugger generates header id
+     */
+    export class Slugger {
+      constructor() {
+        this.seen = {};
+      }
+
+      /** @param {string} value */
+      serialize(value) {
+        return value
+          .toLowerCase()
+          .trim()
+          // remove html tags
+          .replace(/<[!\/a-z].*?>/ig, '')
+          // remove unwanted chars
+          .replace(/[\u2000-\u206F\u2E00-\u2E7F\\'!"#$%&()*+,./:;<=>?@[\]^`{|}~]/g, '')
+          .replace(/\s/g, '-');
+      }
+
+      /**
+       * Finds the next safe (unique) slug to use
+       * @param {string} originalSlug
+       */
+      getNextSafeSlug(originalSlug) {
+        let slug = originalSlug;
+        let occurenceAccumulator = 0;
+        if (this.seen.hasOwnProperty(slug)) {
+          occurenceAccumulator = this.seen[originalSlug];
+          do {
+            occurenceAccumulator++;
+            slug = originalSlug + '-' + occurenceAccumulator;
+          } while (this.seen.hasOwnProperty(slug));
+        }
+        return slug;
+      }
+
+      /**
+       * Convert string to unique id
+       * @param {object} [options]
+       */
+      slug(value, options = {}) {
+        const slug = this.serialize(value);
+        return this.getNextSafeSlug(slug)
+      }
+    }
+
+    let
+    tpl = document.createElement('template'),
+    ab = await fetch(location).then(r => r.arrayBuffer()),
+    sha = await crypto.subtle.digest('SHA-256', ab),
+    hash = new Uint8Array(sha).join(''),
+    code = sessionStorage.getItem(hash) || await fetch('https://api.github.com/markdown', {
+      method: 'POST',
+      body: JSON.stringify({
+        text: new TextDecoder().decode(ab),
+        mode: 'gfm'
+      })
+    }).then(r => r.text())
+    sessionStorage.setItem(hash, code)
+    tpl.innerHTML = `<article class="markdown-body">${code}</article>`
+    tpl.content.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'))
+    // add slug id to all headings
+    const slugger = new Slugger()
+    tpl.content.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
+      const slug = slugger.slug(h.textContent)
+      h.id = slug
+      h.insertAdjacentHTML('beforebegin', `<a href="#${slug}" class="anchor" aria-hidden="true"><span class="octicon octicon-link"></span></a>`)
+    })
+    document.body.appendChild(tpl.content.cloneNode(true))
+    location.hash && document.querySelector(location.hash)?.scrollIntoView()
+    document.title = document.querySelector('h1, h2, h3, h4, h5, h6, p').innerText
+  </script>
+</body>
+</html>

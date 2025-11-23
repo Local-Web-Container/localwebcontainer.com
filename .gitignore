@@ -1,0 +1,5 @@
+node_modules/
+package.json
+sw-container.js
+src/
+.codegpt

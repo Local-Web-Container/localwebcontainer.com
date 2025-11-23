@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>ClientMyAdmin</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' href='https://localwebcontainer.com/clientmyadmin/style.css'>
+</head>
+<body>
+<center class="no-js">Javascript is disabled. Please enable it to view this page.</center>
+<center class="js">
+    <h1>Installing service worker...</h1>
+    <progress></progress>
+    <p></p>
+</center>
+<script type="module">
+    const p = document.querySelector('p')
+    const reg = await navigator.serviceWorker.getRegistration()
+
+    /** @param {ServiceWorkerRegistration} registration */
+    function reload(registration) {
+        const serviceWorker = registration.installing || registration.waiting || registration.active
+
+        if (serviceWorker.state === 'activated') {
+            return location.reload()
+        }
+
+        serviceWorker.onstatechange = () => {
+            if (serviceWorker.state === 'activated') {
+                location.reload()
+            }
+        }
+    }
+
+    if (reg) {
+        reload(reg)
+    } else if (!navigator.serviceWorker || !navigator.serviceWorker.register) {
+        p.innerHTML = 'Service Workers are not supported in this browser.';
+        document.querySelector('progress').remove()
+    } else {
+        // Allays install the service worker first
+        navigator.serviceWorker.register('/clientmyadmin-sw.js', {
+            scope: '/',
+            type: 'module',
+            updateViaCache: 'none'
+        }).then(reload, err => {
+            p.innerText = `Error: ${err.message}`
+            console.log(err)
+        })
+    }
+</script>
+</body>
+</html>

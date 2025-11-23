@@ -1,0 +1,39 @@
+<div x-data="idb" x-show="database" id="menu" class="dropdown nav nav-pills flex-column mb-auto">
+  <a class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
+    <i class="m-3 bi bi-stack"></i>
+    <span class="fs-4" x-text="database.name"></span>
+  </a>
+  <hr>
+  <style>
+    .m { display: flex; align-items: center; }
+    .m > a { flex: 1 1 auto; color: #fff; margin-left: 16px; }
+    .m > button { flex: 0 0 auto; }
+  </style>
+  <details open>
+    <summary>Tables</summary>
+    <ul class="list-unstyled small">
+      <template x-for="table in database.tables">
+        <li class="m">
+          <a :href="table.link" class="px-2 btn btn-dark btn-sm text-start">
+            <i class="bi bi-table me-2"></i>
+            <span x-text="table.name"></span>
+          </a>
+          <button type="button" class="btn btn-dark dropdown-toggle dropdown-toggle-split" data-bs-popper-config='{"placement": "bottom-end"}' data-bs-toggle="dropdown" aria-expanded="false">
+            <span class="visually-hidden">Toggle Dropdown</span>
+            <!-- <i class="bi bi-three-dots-vertical"></i> -->
+          </button>
+          <ul class="dropdown-menu">
+            <li><button class="dropdown-item" @click="addRow(table)">Add row</button></li>
+            <!-- <li><button class="dropdown-item" @click="addColumn(table)">Add column</button></li> -->
+            <li><button class="dropdown-item" @click="rename(table)">Rename</button></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><button class="dropdown-item" @click="clearTable(table)">Delete all rows</button></li>
+            <li><button class="dropdown-item" @click="drop(table)">Drop (remove table)</button></li>
+          </ul>
+        </li>
+      </template>
+      <li><a :href="database.link + '/table'" class="nav-link text-white text-decoration-none rounded"><i class="bi bi-plus-lg me-2"></i> New Table</a></li>
+    </ul>
+  </details>
+</div>
+

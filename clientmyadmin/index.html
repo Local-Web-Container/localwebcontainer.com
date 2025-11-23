@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <title>ClientMyAdmin</title>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
+  <link rel='stylesheet' href='/clientmyadmin/style.css'>
+</head>
+<body x-data="dropdown">
+  <center>
+    <h1>Client My Admin</h1>
+    <p>The local sandboxed-config-less http server you will ever need
+      to serve static sites that don't require any app!</p>
+  </center>
+
+  <form action="/" novalidate>
+    <fieldset>
+      <legend>Configure Root</legend>
+      <details>
+        <summary>Choose a zip-url as the root of your site.</summary>
+        <label for="installFrom">URL <small>(need to be CORS-enabled)</small></label>
+        <input required id="installFrom" name="installFrom" type="url" list="samplesZipURLS" placeholder="https://">
+        <input type="submit" value="Install">
+        <datalist id="samplesZipURLS">
+          <option value="https://cdn.jsdelivr.net/gh/Stuk/jszip/test/ref/image.zip" label="Small zip with a smiley gif"></option>
+          <option value="https://localwebcontainer.com/samples/reports.zip" label="Sample zip report"></option>
+        </datalist>
+      </details>
+      <details>
+        <summary>Choose a local folder as the root</summary>
+        <button id="pick">Select a local folder</button>
+        <p id="dropzone">
+          (drag 'n drop one folder here...)<br>
+        </p>
+        <div id="warning" hidden>
+          <p>⚠️ This browser does not support the native file system access ⚠️</p>
+          <p>
+            The folder handle will <b>not</b> be stored in the browser IndexedDB.<br>
+            This page must remain open for this to work.
+          </p>
+          <a href="/" target="_blank">Open up a new tab</a>
+        </div>
+      </details>
+    </fieldset>
+  </form>
+
+  <fieldset>
+    <legend>Server behavior</legend>
+    <p><label><input disabled type="checkbox">Automatically look for index.html in directories</label></p>
+    <p><label><input disabled type="checkbox">Support extension-less (.html) path lookup</label></p>
+    <p><label><input disabled type="checkbox">Pretty print json files</label></p>
+    <p><label><input disabled type="checkbox">Override Accepted-Language req headers</label></p>
+    <p><label><input disabled type="checkbox">Send/override DOT (Do not track) request header</label></p>
+    <p><label><input disabled type="checkbox">Simulate being offline (block outgoing network requests)</label></p>
+    <p>CSP headers:</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Network log</legend>
+    TOOD:
+  </fieldset>
+
+  <fieldset>
+    <legend>Breakpoints</legend>
+    TODO: intercept request and response and mock them
+  </fieldset>
+
+  <fieldset>
+    <legend>Service Workers</legend>
+    <table id="workers">
+      <thead>
+        <tr>
+          <th>Script URL</th>
+          <th>Scope</th>
+          <th>state</th>
+          <th>updateViaCache</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <script>
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        const table = document.getElementById('workers');
+        for (let registration of registrations) {
+          const row = table.insertRow();
+          row.insertCell().innerText = registration.active.scriptURL;
+          row.insertCell().innerText = registration.scope;
+          row.insertCell().innerText = registration.active.state;
+          row.insertCell().innerText = registration.updateViaCache;
+        }
+      })
+    </script>
+    <button type="button" id="clearSiteData">Uninstall all service workers</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Clients</legend>
+    <table>
+      <thead>
+        <tr>
+          <th>Visibility</th>
+          <th>Focused</th>
+          <th>Frame type</th>
+          <th>Type</th>
+          <th>UUID</th>
+          <th>url</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="client in clients" :key="client.id">
+          <tr>
+            <td x-text="client.visibilityState"></td>
+            <td x-text="client.focused"></td>
+            <td x-text="client.frameType"></td>
+            <td x-text="client.type"></td>
+            <td x-text="client.id"></td>
+            <td x-text="client.url"></td>
+          </tr>
+        </template>
+      </tbody>
+   </table>
+  </fieldset>
+
+  <fieldset>
+    <legend>Permissions</legend>
+    <p><span x-text="permissions.push"></span> - Web PUSH</p>
+    <p><span x-text="permissions.notification"></span> - Notification</p>
+    <p><span x-text="permissions.geo"></span> - GeoLocation</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Storage Estimate</legend>
+    <dl id="storageEstimate">
+      <dt>Quota</dt>
+      <dd x-text="bytes(quota)"></dd>
+
+      <dt>Usage</dt>
+      <dd x-text="bytes(usage)"></dd>
+
+      <dt>Usage Details</dt>
+      <template
+        x-for="[storage, value] in Object.entries(usageDetails)"
+        :key="storage"
+      >
+        <dd x-text="storage + ' ' + bytes(value)">
+      </template>
+    </dl>
+  </fieldset>
+  <script type="module" src="/clientmyadmin/controller.js"></script>
+</body>
+</html>

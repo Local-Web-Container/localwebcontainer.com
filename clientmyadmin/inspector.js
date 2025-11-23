@@ -1,10 +1,10 @@
 /// <reference lib="dom" />
 import kv from './shared/kv.js'
 import { Router } from './shared/itty-router.js'
-import Alpine from './alpine.js'
+// import Alpine from './alpine.js'
 import { default as bootstrap } from 'https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/+esm'
 // import { default as bootstrap } from 'https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js/+esm'
-// import Alpine_ from 'https://cdn.jsdelivr.net/npm/alpinejs@3.9.1/dist/module.esm.min.js'
+import Alpine from 'https://cdn.jsdelivr.net/npm/@alpinejs/csp@3.14.9/dist/module.esm.js'
 // import * as Popper from 'https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/+esm'
 
 // @ts-ignore
@@ -25,7 +25,7 @@ const titles = {
   localstorage: 'Local Storage',
   sessionstorage: 'Session Storage',
   cookies: 'Cookies',
-  websql: 'WebSQL',
+  sql: 'WebSQL',
   indexeddb: 'IndexedDB',
   cachestorage: 'Cache Storage',
   'whatwg-fs': 'File System',
@@ -35,7 +35,7 @@ const cancel = ctx => ctx.event.preventDefault()
   'localstorage',
   'sessionstorage',
   'cookies',
-  'websql/*?',
+  'sql/*?',
   'indexeddb/*?',
   'cachestorage/:cache?',
   'whatwg-fs/*?',
@@ -145,3 +145,32 @@ Alpine.data('app', () => ({
 
 console.log('start')
 Alpine.start()
+
+const set = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML').set
+
+const identity = x => x
+const safeHtml = globalThis.trustedTypes?.createPolicy("myEscapePolicy", {
+  createHTML: identity,
+  createScript: identity,
+  createScriptURL: identity,
+}) || {
+  createHTML: identity,
+  createScript: identity,
+  createScriptURL: identity,
+}
+
+Object.defineProperty(Element.prototype, 'innerHTML', {
+  set (html) {
+    set.call(this, safeHtml.createHTML(html))
+  }
+})
+Object.defineProperty(Element.prototype, 'insertAdjacentHTML', {
+  value (position, html) {
+    set.call(this, safeHtml.createHTML(html))
+  }
+})
+Object.defineProperty(Element.prototype, 'outerHTML', {
+  set (html) {
+    set.call(this, safeHtml.createHTML(html))
+  }
+})

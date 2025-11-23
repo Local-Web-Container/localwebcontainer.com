@@ -1,5 +1,5 @@
+import './clientmyadmin/event-handler.js'
 import { Router } from './itty-router.js'
-import sw from './extern.js'
 import kv from './clientmyadmin/shared/kv.js'
 import fsa from './clientmyadmin/shared/fs.js'
 import mime from './clientmyadmin/mime/mod.js'
@@ -7,20 +7,15 @@ import readzip, { Entry } from './clientmyadmin/shared/zip64/read.js'
 import getDir from 'native-file-system-adapter/src/getOriginPrivateDirectory.js'
 import jsdelivr from 'native-file-system-adapter/src/adapters/jsdelivr.js'
 import crossOrigion from './clientmyadmin/cross-origion.js'
+import { shimport } from './shimport.js'
+import { html, isPlainObject } from './util.js'
+import parseRange from 'range-parser'
+
+globalThis.parseRange = parseRange
+
 // import postcss from 'postcss'
 // import postcssNested from 'postcss-nested'
-
-import { shimport } from './shimport.js'
-
-// pointless identity template literal tag to get syntax highlighting in VSCode
-const html = (str, ...val) => str.reduce((acc, str, i) => acc + str + (val[i] ?? ''), '')
-
-// Polyfill for Response.json
-Response.json ??= function (o) {
-  return new Response(JSON.stringify(o), {
-    headers: { 'content-type': 'application/json' }
-  })
-}
+const sw = /** @type {ServiceWorkerGlobalScope & typeof globalThis} */ (globalThis)
 
 let target = `es${ new Date().getFullYear() - 2 }`
 
@@ -39,14 +34,19 @@ if (chromeVersion) {
   target = 'safari' + safariVersion
 }
 
-const { hasOwn } = Object
+const base = new URL('/', import.meta.url).origin
 
-const base = location.origin.includes('localhost')
-  ? 'http://localhost:4445'
-  : 'https://localwebcontainer.com'
+globalThis.loadLocalServiceWorker = async () => {
+  root ??= await kv('get', 'root').then(dir =>
+    dir?.type === 'jsdelivr' ? getDir(jsdelivr, dir.root) : dir
+  )
 
-function isObject(o) {
-  return Object.prototype.toString.call(o) === '[object Object]';
+  console.log('loading local service worker from', root)
+  try {
+    await shimport('/sw.js')
+  } catch (e) {
+    console.info('Failed to load local sw.js', e)
+  }
 }
 
 /** look for request in cache, if not found, fetch and cache  */
@@ -59,37 +59,10 @@ async function cacheFirst (req) {
   return res
 }
 
-sw.addEventListener('install', () => {
-  caches.open('v1').then(cache =>
-    cache.addAll([
-      'https://sindresorhus.com/github-markdown-css/github-markdown.css',
-      base + '/esbuild.wasm',
-      base + '/clientmyadmin/index.html',
-      base + '/clientmyadmin/json.html',
-      base + '/clientmyadmin/style.css',
-      base + '/clientmyadmin/markdown.html',
-      base + '/clientmyadmin/style.html',
-      base + '/clientmyadmin/allowread.html',
-      base + '/clientmyadmin/shared/kv.js',
-      base + '/clientmyadmin/shared/fs.js',
-    ])
-  )
-})
-
-function isPlainObject (o) {
-  var ctor,prot;
-  if (isObject(o) === false) return false
-  ctor = o.constructor
-  if (ctor === undefined) return true
-  prot = ctor.prototype
-  if (isObject(prot) === false) return false
-  return hasOwn(prot, 'isPrototypeOf')
-}
-
 const origFetch = globalThis.fetch
 /** @return {Promise<Response>} */
 globalThis.fetch = async function fetch(...args) {
-  // recusive loopback
+  // recursive loopback
   if (!(args[0] instanceof Request)) return fetch(new Request(...args))
 
   if (args[0].url.startsWith(origin)) {
@@ -113,6 +86,8 @@ globalThis.fetch = async function fetch(...args) {
           statusText: 'Not found',
         })
       }
+
+      // This will be used in case of firefox when using a local folder from drag and drop
       if (root.type === 'client') {
         const client = await sw.clients.get(root.root)
         if (!client) {
@@ -139,7 +114,8 @@ globalThis.fetch = async function fetch(...args) {
       try {
         const handle = await fsa.open(root, p)
         if (handle.kind === 'file') {
-          return handle.getFile().then(renderFile)
+          const file = await handle.getFile()
+          return renderFile(file, args[0])
         } else {
           for await (const [name, entry] of handle) {
             entries.set(`${pathname}/${name}`.replace(/^\//, ''), entry)
@@ -157,7 +133,10 @@ globalThis.fetch = async function fetch(...args) {
 
     /** @type {Blob} */
     const zipBlob = await kv('get', 'zip-file')
-    if (!zipBlob) return Response.redirect('/clientmyadmin')
+    if (!zipBlob) {
+      // return new Response('Not Found.')
+      return Response.redirect('/clientmyadmin')
+    }
 
     for await (const entry of readzip(zipBlob)) {
       if (!entry.directory) entries.set(entry.name, entry)
@@ -194,7 +173,8 @@ async function init () {
 async function _import (url, opts) {
   // if (cache.has(url)) return cache.get(url)
   await (p ??= init())
-  const { build, httpPlugin } = await shimport(base + '/esbuild.min.js')
+  const { build, httpPlugin, sveltePlugin } = await shimport(base + '/esbuild.min.js')
+  console.log([ httpPlugin, sveltePlugin ])
   const options = {
     entryPoints: [url],
     format: 'esm',
@@ -204,7 +184,8 @@ async function _import (url, opts) {
     sourcemap: true,
     // bundle: true,
     target,
-    plugins: [ httpPlugin ],
+    plugins: [
+      sveltePlugin, httpPlugin ],
     ...opts
   }
 
@@ -219,20 +200,23 @@ async function _import (url, opts) {
 const router = Router()
 let root
 
-router.all('*', o => {
-  // return true
-}, ctx => {
-  ctx.headers
-})
-
-
-
 router.get(o =>
   ctx => ['script', 'worker'].includes(ctx.request.destination),
   async ctx => {
     const ext = ctx.request.url.split('.').pop()
 
 
+    if (ext === 'html' && ctx.request.destination === 'script') {
+      const html = await fetch(ctx.request.url).then(res => res.text())
+
+      return new Response(`
+        const t = document.createElement('template')
+        t.innerHTML = ${JSON.stringify(html)}
+        export default t.content
+      `, {
+        headers: { 'content-type': 'text/javascript' }
+      })
+    }
 
     if (ext === 'css' && ctx.request.destination === 'script') {
       await (p ??= init())
@@ -262,17 +246,18 @@ router.get(o =>
       })
     }
 
-    if (['jsx', 'ts', 'tsx'].includes(ext)) {
+    if (['jsx', 'ts', 'tsx', 'svelte'].includes(ext)) {
+      const { rewriteImports } = await shimport(base + '/esbuild.min.js')
       const uint8 = await _import(ctx.request.url)
-      const res = new Response(uint8, {
+      let str = new TextDecoder().decode(uint8)
+      str = await rewriteImports(str)
+      const res = new Response(str, {
         headers: { 'content-type': 'text/javascript' }
       })
       return res
     }
   }
 )
-
-
 
 // router.get(o => ['script', 'worker'].includes(o.request.destination), ctx => {
 //   const ext = ctx.request.url.split('.').pop()
@@ -358,7 +343,49 @@ router.all(evt =>
   _ => fetch(`${base}/clientmyadmin/json.html`)
 )
 
+router.all(evt =>
+  evt.request.destination === 'script' &&
+  evt.url.pathname.toLowerCase().endsWith('.ce.vue'),
+  async ctx => {
+    const { compile } = await shimport(`${base}/clientmyadmin/vue-resolver.js`)
+    return compile(ctx.request)
+  }
+)
 
+router.all(evt =>
+  evt.request.destination === 'document' &&
+  evt.url.pathname.toLowerCase().endsWith('.svelte'),
+  async ctx => {
+    const { compile } = await shimport('https://cdn.jsdelivr.net/npm/svelte@4.0.0/compiler.cjs/+esm')
+    const { create_ssr_component } = await shimport('https://esm.sh/stable/svelte@4.0.0/es2022/src/runtime/internal/ssr.js')
+    const options = { generate: 'ssr' }
+    const source = await fetch(ctx.request.url).then(res => res.text())
+    let code = compile(source, options).js.code
+
+    code = code
+      .slice(code.indexOf(';')) // strip out import statement
+      .replace('export default', 'return') // replace export with return
+
+    // evaluate the code and render the component
+    const result = new Function('create_ssr_component', code)(create_ssr_component).render()
+
+    const str = html`<!DOCTYPE html>
+    <html>
+      <head>
+        <style>${result.css.code}</style>
+      </head>
+      <body>${result.html}</body>
+    </html>`
+
+    return new Response(str, {
+      headers: { 'content-type': 'text/html' },
+      status: 200,
+      statusText: 'OK'
+    })
+  }
+)
+
+globalThis.router = router
 router.get(o =>
   o.request.destination === 'style',
   async ctx => {
@@ -398,42 +425,31 @@ router.get(o =>
     // console.timeEnd('postcss')
 
     await (p ??= init())
-    const { build, httpPlugin } = await shimport(base + '/esbuild.min.js')
+    const { build, httpPlugin, sveltePlugin } = await shimport(base + '/esbuild.min.js')
     const options = {
       entryPoints: [ctx.request.url],
       minify: true,
       sourcemap: true,
       target,
       // bundle: true,
-      plugins: [ httpPlugin ],
+      plugins: [ httpPlugin, sveltePlugin ],
     }
 
-    // console.time('esbuild')
     const result2 = await build(options)
-    // console.timeEnd('esbuild')
-    const esbuildCSS = new TextDecoder().decode(result2.outputFiles[0].contents)
-    // console.log('sizes', {
-    //   css: new Blob([css]).size,
-    //   lightningcss: new Blob([code]).size,
-    //   postcss: new Blob([result.css]).size,
-    //   esbuild: new Blob([esbuildCSS]).size
-    // })
+    const esbuildCSS = result2.outputFiles[0].text
 
     return new Response(esbuildCSS, {
-      headers: { 'content-type': 'text/css' }
+      headers: { 'content-type': 'text/css; charset=utf-8' }
     })
   }
 )
 
-// All url that ain't for this subdomain should make a normal request
-router.all({}, async ctx => {
-  // return new Response('hej')
-  return fetch(ctx.request)
-})
-
 // A generic error handler
-function errorHandler (error) {
+function errorHandler (error, evt) {
+  console.groupCollapsed('⚠️ Failed to handle request: ' + evt.request.url)
   console.error(error)
+  console.log(evt.request)
+  console.groupEnd()
   return new Response(error.stack || 'Server Error', {
     status: error.status || 200
   })
@@ -455,13 +471,17 @@ function convertToResponse (thing) {
 }
 
 // attach the router "handle" to the event handler
-sw.addEventListener('fetch', evt =>
+sw.addEventListener('fetch', evt => {
+  // if (evt.request.url.startsWith('https://fonts.googleapis.com')) {
+  //   evt.respondWith(fetch(evt.request))
+  //   return
+  // }
   evt.respondWith(router
     .handle(evt)
     .then(convertToResponse)
-    .catch(errorHandler)
+    .catch(err => errorHandler(err, evt))
   )
-)
+})
 
 // Simple helper use waitUntil and logging any errors that occur.
 const t = (evt, fn) => evt.waitUntil(fn().catch(console.error))
@@ -475,12 +495,20 @@ sw.onmessage = async evt => {
     root = null
   }
 
-  if (data !== 'claimMe') return
+  // Kontrollera om det är ett meddelande för att överföra en MessageChannel
+  if (data?.type === 'TRANSFER_CHANNEL' && data.targetClientId) {
+    t(evt, async () => {
+      const targetClient = await sw.clients.get(data.targetClientId)
+      targetClient.postMessage({ type: 'CHANNEL_TRANSFER' }, ports)
+    })
+  }
 
-  t(evt, async () => {
-    await sw.clients.claim()
-    ports[0].postMessage('claimed')
-  })
+  if (data === 'claimMe') {
+    t(evt, async () => {
+      await sw.clients.claim()
+      ports[0].postMessage('claimed')
+    })
+  }
 }
 
 function renderTreeList(entries) {
@@ -526,7 +554,25 @@ function load(uint8) {
 }
 
 /** @param {File|Entry} file */
-async function renderFile (file) {
+async function renderFile (file, request) {
+
+  const rangeHeader = request?.headers.get('range')
+  if (rangeHeader) {
+    const [ range ] = parseRange(file.size, rangeHeader, { combine: true })
+    const sliced = file.slice(range.start, range.end + 1)
+    const headers = {
+      'content-type': mime.getType(file.name) || file.type,
+      'content-length': sliced.size,
+      'accept-ranges': 'bytes',
+      'content-range': `bytes ${range.start}-${range.end}/${file.size}`
+    }
+
+    return new Response(sliced.stream(), {
+      headers,
+      status: 206
+    })
+  }
+
   const headers = {
     'content-type': mime.getType(file.name) || file.type,
     'content-length': file.size
@@ -534,3 +580,72 @@ async function renderFile (file) {
 
   return new Response(file.stream(), { headers })
 }
+
+// onfetch = evt => {
+//   if (
+//     evt.request.destination === 'script' &&
+//     evt.request.assertion?.type === 'css'
+//   ) {
+//     evt.waitUntil(async function () {
+//       const { request } = evt
+//       const css = await fetch(request).then(res => res.text())
+
+//       return new Response(`
+//         const sheet = new CSSStyleSheet()
+//         await sheet.replace(${JSON.stringify(css)}, {
+//           baseURL: ${JSON.stringify(ctx.request.url)}
+//         })
+//         export default sheet
+//       `, {
+//         headers: { 'content-type': 'text/javascript' }
+//       })
+//     })
+//   }
+// }
+
+
+/*
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 100 700;
+  src: url(https://fonts.gstatic.com/icon/font?kit=kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsLjBuVYLA7lrt8zWsgTgR00mg&skey=b8dc2088854b122f&v=v247) format('woff2');
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+
+access-control-allow-origin: *
+alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+cache-control: private, max-age=86400, stale-while-revalidate=604800
+content-encoding: gzip
+content-type: text/css; charset=utf-8
+cross-origin-opener-policy: same-origin-allow-popups
+cross-origin-resource-policy: cross-origin
+date: Fri, 30 May 2025 16:53:12 GMT
+expires: Fri, 30 May 2025 16:53:12 GMT
+last-modified: Fri, 30 May 2025 16:53:12 GMT
+link: <https://fonts.gstatic.com>; rel=preconnect; crossorigin
+server: ESF
+strict-transport-security: max-age=31536000
+timing-allow-origin: *
+vary: Sec-Fetch-Dest, Sec-Fetch-Mode, Sec-Fetch-Site
+x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+x-xss-protection: 0
+
+*/

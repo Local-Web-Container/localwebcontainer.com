@@ -151,7 +151,7 @@ export async function initDatabase(dbName) {
     name: 'sqlite_master',
     sql: 'CREATE TABLE sqlite_master (name text, type text, tbl_name text, rootpage integer, sql text)',
   }, database)
-  database.link = `/clientmyadmin/inspector/websql/${encodeParam(dbName)}`
+  database.link = `/clientmyadmin/inspector/sql/${encodeParam(dbName)}`
 
   await q(db, 'readTransaction', function * () {
     const sortingArr = ['table']

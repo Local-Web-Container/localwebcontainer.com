@@ -217,7 +217,7 @@ export default async function (ctx) {
   const dialog = document.createElement('dialog')
   dialog.onsubmit = evt => {
     const fd = new FormData(evt.target)
-    globalThis.navigate('./websql/' + fd.get('database'))
+    globalThis.navigate('./sql/' + fd.get('database'))
   }
 
   dialog.innerHTML = `

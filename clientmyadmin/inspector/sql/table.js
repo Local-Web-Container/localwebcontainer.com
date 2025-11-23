@@ -41,7 +41,7 @@ export class Table {
     this.name = row.name
     this.sql = row.sql
     this.#db = db
-    this.link = `/clientmyadmin/inspector/websql/${a}/table/${b}?limit=10&offset=0`
+    this.link = `/clientmyadmin/inspector/sql/${a}/table/${b}?limit=10&offset=0`
   }
 
   drop() {

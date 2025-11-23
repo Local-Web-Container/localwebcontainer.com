@@ -1,5 +1,5 @@
 import kv from './shared/kv.js'
-import Alpine_ from 'https://cdn.jsdelivr.net/npm/alpinejs@3.9.1/dist/module.esm.min.js'
+import Alpine_ from 'https://cdn.jsdelivr.net/npm/@alpinejs/csp@3.14.9/dist/module.esm.js'
 import { showDirectoryPicker } from 'https://cdn.jsdelivr.net/npm/native-file-system-adapter@3.0.0/src/es6.js'
 
 globalThis.kv = kv
@@ -141,6 +141,7 @@ drop.ondrop = async (e) => {
   if (items.length > 1) {
     alert('Only one folder can be dropped')
   }
+  globalThis.entry = items[0].webkitGetAsEntry()
   items[0].getAsFileSystemHandle().then(async root => {
     if (root.kind !== 'directory') {
       return alert('Only folders can be dropped')
@@ -163,7 +164,20 @@ drop.ondrop = async (e) => {
       const {default: fsa} = await import('./shared/fs.js')
 
       navigator.serviceWorker.addEventListener('message', async evt => {
-        if (evt.data.cmd === 'open') {
+        console.log(evt.data)
+        if (evt.data.type === 'CHANNEL_TRANSFER') {
+          const [receivedPort] = evt.ports;
+          console.log(`mottog en MessagePort från Service Worker.`);
+
+          // Nu kan Klient A börja kommunicera med den andra änden av kanalen
+          receivedPort.onmessage = (messageEvent) => {
+            console.log(`mottog meddelande via den överförda kanalen:`, messageEvent.data);
+          };
+          receivedPort.start(); // Viktigt: Starta porten för att ta emot meddelanden
+
+          // Valfritt: Klient A kan svara via den mottagna porten
+          receivedPort.postMessage('Tack för kanalen, Klient B! Nu kan vi prata direkt.');
+        } else if (evt.data.cmd === 'open') {
           try {
             const handle = await fsa.open(root, evt.data.path)
             if (handle.kind === 'file') {

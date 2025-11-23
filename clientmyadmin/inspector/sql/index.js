@@ -8,6 +8,6 @@ export class Index {
     this.name = row.name
     this.tableName = row.tableName
     this.sql = row.sql
-    this.link = `/clientmyadmin/inspector/websql/${a}/index/${b}`
+    this.link = `/clientmyadmin/inspector/sql/${a}/index/${b}`
   }
 }

@@ -4,7 +4,7 @@
   <meta charset='utf-8'>
   <title>ClientMyAdmin</title>
   <meta name='viewport' content='width=device-width, initial-scale=1'>
-  <link rel='stylesheet' href='/clientmyadmin/style.css'>
+  <link rel='stylesheet' href='https://localwebcontianer.com/clientmyadmin/style.css'>
 </head>
 <body>
   <center>
@@ -14,6 +14,12 @@
     <script type="module">
       import kv from '/clientmyadmin/shared/kv.js'
       import { parseGithubURL } from '/clientmyadmin/shared/itty-github-parser.js'
+
+      const canImportJson = await import('data:application/json;,1', { with: { type: 'json' }})
+        .then(_ => true, _ => false)
+
+      console.log('canImportJson', canImportJson)
+      throw new Error('stop')
 
       const progress = document.querySelector('progress')
       const p = document.querySelector('p')

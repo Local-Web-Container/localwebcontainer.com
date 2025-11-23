@@ -1,6 +1,7 @@
 // @ts-check
 
 import './utils.js'
+import el from '../elm.js'
 import './menu-button.js'
 import ContextMenu from './context-menu.js'
 import AnyView from '../any-view.js'
@@ -188,13 +189,8 @@ class DataGrid {
     this.navigationDisabled = false
     this.gridNode = gridNode
     this.topIndex = 0
-
+    console.log(gridNode)
     this.keysIndicator = $(document, '#arrow-keys-indicator')
-
-    aria.Utils.bindMethods(
-      this,
-      'delegateButtonHandler',
-    )
 
     this.registerEvents()
   }
@@ -268,11 +264,11 @@ class DataGrid {
   registerEvents () {
     const gridNode = this.gridNode
     gridNode.addEventListener('keydown', e => this.#checkFocusChange(e))
-    gridNode.addEventListener('keydown', this.delegateButtonHandler)
+    gridNode.addEventListener('keydown', e => this.delegateButtonHandler(e))
     gridNode.addEventListener('click', e => this.focusClickedCell(e))
     gridNode.addEventListener('dblclick', e => this.#ondbclick(e))
     gridNode.addEventListener('contextmenu', e => this.#showContextMenu(e))
-    gridNode.addEventListener('click', this.delegateButtonHandler)
+    gridNode.addEventListener('click', e => this.delegateButtonHandler(e))
   }
 
   #showContextMenu (evt) {
@@ -347,7 +343,7 @@ class DataGrid {
     const last = $(this.gridNode, '[tabindex="0"]')
     if (last) last.tabIndex = -1
     console.log(evt.target)
-    if(evt.metaKey || evt.ctrlKey) {
+    if (evt.metaKey || evt.ctrlKey) {
       // toggle selection
       row.ariaSelected === 'true' ? deSelectTr(row) : selectTr(row)
     } else if (evt.shiftKey) {
@@ -522,20 +518,12 @@ export const bytes = size => {
 /** @param {Date} date */
 export const toLocalTime = (date) => date.toLocaleString()
 
-const frag = document.createElement('div')
-frag.innerHTML = `
-<table
-  id="ex2-grid"
-  role="grid"
-  class="table table-dark table-hover data"
->
-  <thead class="table-light"><tr></tr></thead>
-  <tbody class="table-group-divider"></tbody>
-</table>
-`
+const table = el('table', { id: 'ex2-grid', role: 'grid', className: 'table table-dark table-hover data' }, [
+  el('thead', { className: 'table-light' }, [ el('tr') ]),
+  el('tbody', { className: 'table-group-divider' })
+])
 
-const grid = new DataGrid(frag.querySelector('table'))
-
+const grid = new DataGrid(table)
 
 function defaultSort(a, b) {
   var c = null == a || Number.isNaN(a),

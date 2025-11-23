@@ -12,6 +12,6 @@ export class View {
     this.sql = row.sql
     const i = row.sql.toLocaleLowerCase().indexOf(' as select')
     this.query = row.sql.slice(i + 4)
-    this.link = `/clientmyadmin/inspector/websql/${a}/view/${b}`
+    this.link = `/clientmyadmin/inspector/sql/${a}/view/${b}`
   }
 }

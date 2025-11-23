@@ -1105,20 +1105,25 @@ body>footer {
 
 /* Hiding and Showing ------------------------ */
 
-.js .show-js {
-	display: block !important;
+
+/* if javascript is activated */
+@media (scripting: enabled) {
+	.no-js {
+		display: none;
+	}
 }
 
-.js .hide-js {
-	display: none !important;
+/* if javascript is disabled */
+@media (scripting: none) {
+	.js {
+		display: none;
+	}
 }
 
-.no-js .show-no-js {
-	display: block !important;
-}
-
-.no-js .hide-no-js {
-	display: none !important;
+@media (scripting: initial-only) {
+  .no-js, .js {
+    display: none;
+  }
 }
 
 dl {

@@ -1,3 +1,5 @@
+import css from './any-view.css' with { type: 'css' };
+
 const wm = new WeakMap()
 const tag = Symbol.toStringTag
 
@@ -217,54 +219,8 @@ class AnyPreview extends HTMLElement {
     super()
     const type = typeof obj
     const style = document.createElement('style')
-    style.innerHTML = `
-      :host {
-        font-family: menlo, monospace;
-        color: rgb(232, 234, 237);
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-      .non-expandable ::marker {
-        color: transparent;
-      }
-      .name {
-        color: rgb(93, 176, 215);
-      }
-      details[open]:not('.non-expandable') > summary > .value {
-        display: none;
-      }
-      summary {
-        list-style-position: outside;
-      }
-      .tab {
-        user-select: none;
-        display: inline-block;
-        white-space: pre;
-        tab-size: 2;
-      }
-      .detail-body {
-        display: flex;
-      }
-      .container {
-        flex: 1;
-      }
-      .container > div {
-        display: list-item;
-        counter-increment: list-item 0;
-        list-style: outside none;
-      }
-      .string a,
-      .string {
-        color: rgb(53, 212, 199);
-      }
-      .boolean, .number, .bigint {
-        color: rgb(153, 128, 255);
-      }
-      ::marker {
-        color: transparent;
-      }
-    `
     const root = this.attachShadow({ mode: 'closed' })
+    root.adoptedStyleSheets.push(css)
     root.append(style, objectPreview(undefined, obj))
     root.addEventListener('keydown', e => {
       const key = e.key

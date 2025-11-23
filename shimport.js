@@ -735,8 +735,7 @@ function transform (source, id) {
   })
 
   exportDeclarations.forEach(function (d) {
-    if (!d.source) { return }
-    if (nameBySource.has(d.source)) { return }
+    if (!d.source || nameBySource.has(d.source)) return
     nameBySource.set(d.source, d.name || ('__dep_' + (nameBySource.size)))
   })
 
@@ -798,8 +797,6 @@ function transform (source, id) {
   return transformed
 }
 
-// @ts-check
-
 /** @type {Record<string, Promise<any>>} */
 const promises = {}
 
@@ -814,10 +811,10 @@ const promises = {}
 function define (id, deps, factory) {
   const __import = function (dep) { return load(new URL(dep, id).toString()) }
 
-  return Promise.all(deps.map(__import)).then(function (__deps) {
+  return Promise.all(deps.map(__import)).then(__deps => {
     const __exports = {}
 
-    factory.apply(void 0, [__import, __exports].concat(__deps))
+    factory(__import, __exports, ...__deps)
     return __exports
   })
 }
@@ -836,7 +833,11 @@ async function load (url) {
 
 /** @param {string} code */
 function evaluate (code) {
-  return (0, eval)(code)
+  try {
+    return (0, eval)(code)
+  } catch (e) {
+    throw new Error('Error evaluating ' + code + '\n' + e.stack)
+  }
 }
 
 globalThis.__shimport__ = {

@@ -10,6 +10,6 @@ export class Trigger {
     this.name = row.name
     this.tableName = row.tableName
     this.sql = row.sql
-    this.link = `/clientmyadmin/inspector/websql/${a}/trigger/${b}`
+    this.link = `/clientmyadmin/inspector/sql/${a}/trigger/${b}`
   }
 }

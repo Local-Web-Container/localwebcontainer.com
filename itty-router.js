@@ -1,4 +1,4 @@
-export function Router({ routes = [] } = {}) {
+function Router({ routes = [] } = {}) {
   return {
     __proto__: new Proxy({}, {
       get: (target, prop, receiver) => (matcher, ...handlers) => {
@@ -36,6 +36,11 @@ export function Router({ routes = [] } = {}) {
           }
         }
       }
+
+      // All url that ain't for this subdomain should make a normal request
+      return fetch(ctx.request)
     }
   }
 }
+
+export { Router }

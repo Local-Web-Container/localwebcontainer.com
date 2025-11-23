@@ -11,7 +11,6 @@ async function findHandle (root, path) {
   }
 
   const name = /** @type {string} */ (path.shift())
-  console.log('root.kind', root.kind)
   if (await root.kind === 'directory') {
     const handle = await root.getDirectoryHandle(name).catch(err => {
       if (err.name === 'TypeMismatchError') {

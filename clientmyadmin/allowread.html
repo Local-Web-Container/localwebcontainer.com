@@ -18,11 +18,20 @@
       document.querySelector('span').textContent = root.name
       document.body.hidden = false
       $btn.focus()
-      $btn.onclick = () => root.requestPermission({ mode: 'read' })
-        .then(() => {
+      $btn.onclick = async () => {
+        const promise = Promise.all([
+          fetch('/clientmyadmin/clients').then(r => r.json()),
+          root.requestPermission({ mode: 'read' })
+        ])
+        const [res, permission] = await promise
+
+        if (res.clients.some(client => new URL(client.url).pathname === '/clientmyadmin/')) {
+          location.reload()
+        } else {
           const popunder = open(location, '_blank')
           location.href = '/clientmyadmin/'
-        })
+        }
+      }
     </script>
   </center>
 </body>

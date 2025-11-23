@@ -217,7 +217,7 @@
     })
   }
 
-  window.websqldump = {
+  globalThis.websqldump = {
     export: function () {
       wd.export.apply(wd, arguments)
     }

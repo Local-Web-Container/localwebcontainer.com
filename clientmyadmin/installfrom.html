@@ -15,11 +15,10 @@
       import kv from '/clientmyadmin/shared/kv.js'
       import { parseGithubURL } from '/clientmyadmin/shared/itty-github-parser.js'
 
-      const canImportJson = await import('data:application/json;,1', { with: { type: 'json' }})
-        .then(_ => true, _ => false)
+      // const canImportJson = await import('data:application/json;,1', { with: { type: 'json' }})
+      //   .then(_ => true, _ => false)
 
-      console.log('canImportJson', canImportJson)
-      throw new Error('stop')
+      // console.log('canImportJson', canImportJson)
 
       const progress = document.querySelector('progress')
       const p = document.querySelector('p')

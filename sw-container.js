@@ -472,10 +472,9 @@ function convertToResponse (thing) {
 
 // attach the router "handle" to the event handler
 sw.addEventListener('fetch', evt => {
-  // if (evt.request.url.startsWith('https://fonts.googleapis.com')) {
-  //   evt.respondWith(fetch(evt.request))
-  //   return
-  // }
+  if (evt.request.url.startsWith('http://')) {
+    return
+  }
   evt.respondWith(router
     .handle(evt)
     .then(convertToResponse)

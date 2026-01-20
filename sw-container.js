@@ -34,7 +34,8 @@ if (chromeVersion) {
   target = 'safari' + safariVersion
 }
 
-const base = new URL('/', import.meta.url).origin
+const base = new URL('/', import.meta.url).origin // https://localwebcontainer.com
+const origin = location.origin // https://<subdomain>.localwebcontainer.com
 
 globalThis.loadLocalServiceWorker = async () => {
   root ??= await kv('get', 'root').then(dir =>
@@ -60,13 +61,49 @@ async function cacheFirst (req) {
 }
 
 const origFetch = globalThis.fetch
+globalThis.origFetch = origFetch
 /** @return {Promise<Response>} */
 globalThis.fetch = async function fetch(...args) {
   // recursive loopback
   if (!(args[0] instanceof Request)) return fetch(new Request(...args))
 
-  if (args[0].url.startsWith(origin)) {
-    const pathname = new URL(args[0].url).pathname.replace(/^\/+/, '')
+  const request = args[0]
+  const url = new URL(request.url)
+  const destination = request.destination
+
+  // root = { type: 'cors', url: 'http://localhost:8080' }
+
+  if (url.href.startsWith(origin)) {
+    if (root.type === 'cors') {
+      // this will fetch request going to: https://<subdomain>.localwebcontainer.com/...
+      // to: https://enable-cors.org/...
+
+      // If a link is going to the root cors server, redirect back to us.
+      // but only if it's not made by the service worker itself to avoid loops.
+      if (url.href.startsWith(root.url) && request.destination === 'document') {
+        url.href = url.href.replace(root.url, origin) // Redirect back to our own subdomain
+        // We use 307 (temporary redirect) to preserve method and body
+        //
+        // 308 is not chosen as we don't want the browser to cache this redirect.
+        // 308 would make the next request go directly to us, bypassing the cors server.
+        return Response.redirect(url, 307)
+      }
+
+      url.href = url.href.replace(origin, root.url)
+      const res = await fetch(url)
+      const headers = new Headers(res.headers)
+
+      return new Response(res.body, {
+        headers,
+        status: res.status,
+        statusText: res.statusText
+      })
+    }
+
+    // Request url goes to current subdomain
+    // (https://<subdomain>.localwebcontainer.com)
+
+    const pathname = url.pathname.replace(/^\/+/, '')
     /** @type {Map<string, Entry|File>} */
     const entries = new Map()
     root ??= await kv('get', 'root')
@@ -133,19 +170,29 @@ globalThis.fetch = async function fetch(...args) {
 
     /** @type {Blob} */
     const zipBlob = await kv('get', 'zip-file')
-    if (!zipBlob) {
-      // return new Response('Not Found.')
-      return Response.redirect('/clientmyadmin')
+    if (zipBlob) {
+      for await (const entry of readzip(zipBlob)) {
+        if (!entry.directory) entries.set(entry.name, entry)
+      }
+      const entry = entries.get(pathname)
+
+      return entry
+        ? renderFile(entry)
+        : renderTreeList(entries)
     }
 
-    for await (const entry of readzip(zipBlob)) {
-      if (!entry.directory) entries.set(entry.name, entry)
+    if (pathname.startsWith(base)) {
+      const url = new URL(pathname, base)
+      return fetch(`${base}/${pathname}`)
     }
-    const entry = entries.get(pathname)
-    return entry
-      ? renderFile(entry)
-      : renderTreeList(entries)
+
+
+    // return new Response('Not Found.')
+    return Response.redirect('/clientmyadmin')
   }
+
+  return origFetch(args[0])
+
   return caches.match(args[0]).then(res => {
     return res || origFetch(args[0])
   })
@@ -200,11 +247,10 @@ async function _import (url, opts) {
 const router = Router()
 let root
 
-router.get(o =>
+router.get(
   ctx => ['script', 'worker'].includes(ctx.request.destination),
   async ctx => {
-    const ext = ctx.request.url.split('.').pop()
-
+    const ext = ctx.url.pathname.split('.').pop()
 
     if (ext === 'html' && ctx.request.destination === 'script') {
       const html = await fetch(ctx.request.url).then(res => res.text())
@@ -216,9 +262,7 @@ router.get(o =>
       `, {
         headers: { 'content-type': 'text/javascript' }
       })
-    }
-
-    if (ext === 'css' && ctx.request.destination === 'script') {
+    } else if (ext === 'css' && ctx.request.destination === 'script') {
       await (p ??= init())
       const { build, httpPlugin } = await shimport(base + '/esbuild.min.js')
       const options = {
@@ -244,9 +288,7 @@ router.get(o =>
       `, {
         headers: { 'content-type': 'text/javascript' }
       })
-    }
-
-    if (['jsx', 'ts', 'tsx', 'svelte'].includes(ext)) {
+    } else if (['jsx', 'ts', 'tsx', 'svelte'].includes(ext)) {
       const { rewriteImports } = await shimport(base + '/esbuild.min.js')
       const uint8 = await _import(ctx.request.url)
       let str = new TextDecoder().decode(uint8)
@@ -254,6 +296,22 @@ router.get(o =>
       const res = new Response(str, {
         headers: { 'content-type': 'text/javascript' }
       })
+      return res
+    } else if (ext === 'js') {
+      const res = await fetch(ctx.request)
+
+      // Ensure correct content-type for javascript files
+      if (!res.headers.get('content-type')?.includes('javascript')) {
+        const headers = new Headers(res.headers)
+        headers.set('content-type', 'application/javascript')
+
+        return new Response(res.body, {
+          // duplex: 'half',
+          headers,
+          status: res.status,
+          statusText: res.statusText
+        })
+      }
       return res
     }
   }
@@ -307,8 +365,8 @@ router.get(evt =>
 )
 
 // Redirect all clientmyadmin/* request to top domain being matched on subdomain
-router.get(location.origin + '/clientmyadmin/*', ctx => {
-  ctx.request = new Request(ctx.request.url.replace(location.origin, base))
+router.get(origin + '/clientmyadmin/*', ctx => {
+  ctx.request = new Request(ctx.request.url.replace(origin, base))
   ctx.url = new URL(ctx.request.url)
 })
 
@@ -316,7 +374,7 @@ const singleton = {}
 
 // All url that ain't for this subdomain should make a normal request
 router.all('/functions/*', async evt => {
-  const url = new URL(evt.url.pathname, location.origin)
+  const url = new URL(evt.url.pathname, origin)
   const path = url.toString()
   let module
   if (url.pathname.endsWith('.ts')) {
@@ -444,6 +502,11 @@ router.get(o =>
   }
 )
 
+router.all(
+  ctx => ctx.url.href.startsWith(origin),
+  async ctx => fetch(ctx.request)
+)
+
 // A generic error handler
 function errorHandler (error, evt) {
   console.groupCollapsed('⚠️ Failed to handle request: ' + evt.request.url)
@@ -472,14 +535,16 @@ function convertToResponse (thing) {
 
 // attach the router "handle" to the event handler
 sw.addEventListener('fetch', evt => {
-  if (evt.request.url.startsWith('http://')) {
-    return
+  if (router.matchAny(evt)) {
+    // console.log('Handling fetch event for', evt.request.url)
+    evt.respondWith(router
+      .handle(evt)
+      .then(convertToResponse)
+      .catch(err => errorHandler(err, evt))
+    )
+  } else {
+    // console.log('Bypassing fetch event for', evt.request.url)
   }
-  evt.respondWith(router
-    .handle(evt)
-    .then(convertToResponse)
-    .catch(err => errorHandler(err, evt))
-  )
 })
 
 // Simple helper use waitUntil and logging any errors that occur.

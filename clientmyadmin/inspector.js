@@ -7,9 +7,6 @@ import { default as bootstrap } from 'https://cdn.jsdelivr.net/npm/bootstrap@5.2
 import Alpine from 'https://cdn.jsdelivr.net/npm/@alpinejs/csp@3.14.9/dist/module.esm.js'
 // import * as Popper from 'https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/+esm'
 
-// @ts-ignore
-if (!globalThis.URLPattern) await import('../urlpattern.min.js')
-
 // globalThis.Popper = Popper
 globalThis.bootstrap = bootstrap
 

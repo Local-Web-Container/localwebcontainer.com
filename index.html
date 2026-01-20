@@ -9,7 +9,7 @@
     <!-- title of the browser tab -->
     <title>Local Web Container</title>
 
-    
+
     <script type="module">
       const url = new URL(location.href)
       let from = url.searchParams.get('installFrom')
@@ -17,7 +17,6 @@
       const taken = document.cookie.split(/; */).filter(x => x.endsWith('=cma')).map(x => x.split('=')[0])
 
       if (from === 'referrer' && commingFrom) {
-        if (!globalThis.pattern) await import('/urlpattern.min.js')
         const { parseGithubURL } = await import('/clientmyadmin/shared/itty-github-parser.js')
         const r = await parseGithubURL(commingFrom)
         location.href = `https://${r.repo}-${r.type === 'pull' ? r.branch.slice(0, 5) : r.branch}.localwebcontainer.com/${r.filepath || location.pathname.slice(1)}?installFrom=gh/${r.user}/${r.repo}@${r.branch}`

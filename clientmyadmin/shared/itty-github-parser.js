@@ -1,5 +1,3 @@
-if (!globalThis.URLPattern) await import('../../urlpattern.min.js')
-
 /**
 @typedef {{
   branch: string|undefined,
@@ -11,7 +9,7 @@ if (!globalThis.URLPattern) await import('../../urlpattern.min.js')
 */
 
 /** @return {Promise<GithubPatternResult>} */
-export async function parseGithubURL(url) {
+async function parseGithubURL(url) {
   let b = '[a-z0-9]*',
   p = a => new URLPattern({baseURL: url, pathname: `/:user/:repo/:type?/:branch(${a})?/:filepath(.*)?`}).exec(url).pathname.groups,
   r = p(b)
@@ -32,4 +30,8 @@ export async function parseGithubURL(url) {
     b
   ].join('|'))
   return r
+}
+
+export {
+  parseGithubURL
 }

@@ -71,6 +71,10 @@ globalThis.fetch = async function fetch(...args) {
   const url = new URL(request.url)
   const destination = request.destination
 
+  root ??= await kv_default("get", "root")
+  if (root?.type === "jsdelivr") {
+    root = await getOriginPrivateDirectory_default(jsdelivr, root.root)
+  }
   // root = { type: 'cors', url: 'http://localhost:8080' }
 
   if (url.href.startsWith(origin)) {

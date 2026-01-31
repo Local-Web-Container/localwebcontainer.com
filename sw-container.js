@@ -375,7 +375,7 @@ router.get(evt =>
 //
 // request to top domain being matched on subdomain
 // this route ignores https://localwebcontainer.com/clientmyadmin/*
-router.get({hostname: origin, pathname: '/clientmyadmin/*'}, ctx => {
+router.get({hostname: location.hostname, pathname: '/clientmyadmin/*'}, ctx => {
   const dest = ctx.url.toString().replace(origin, '')
   ctx.request = new Request(import.meta.resolve(dest))
   ctx.url = new URL(ctx.request.url)

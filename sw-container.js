@@ -370,9 +370,14 @@ router.get(evt =>
   ctx => fetch(`${base}/clientmyadmin/inspector.html`)
 )
 
-// Redirect all clientmyadmin/* request to top domain being matched on subdomain
-router.get(origin + '/clientmyadmin/*', ctx => {
-  ctx.request = new Request(ctx.request.url.replace(origin, base))
+// Redirect all https://<subdomain>.localwebcontainer.com/clientmyadmin/*
+// ...actually: it's more: <origin>/clientmyadmin/*
+//
+// request to top domain being matched on subdomain
+// this route ignores https://localwebcontainer.com/clientmyadmin/*
+router.get({hostname: origin, pathname: '/clientmyadmin/*'}, ctx => {
+  const dest = ctx.url.toString().replace(origin, '')
+  ctx.request = new Request(import.meta.resolve(dest))
   ctx.url = new URL(ctx.request.url)
 })
 

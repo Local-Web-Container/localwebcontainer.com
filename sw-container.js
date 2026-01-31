@@ -377,6 +377,14 @@ router.get(evt =>
 // this route ignores https://localwebcontainer.com/clientmyadmin/*
 router.get({hostname: location.hostname, pathname: '/clientmyadmin/*'}, ctx => {
   const dest = ctx.url.toString().replace(origin, '')
+  return origFetch(dest)
+    .then(res => {
+      return new Response(res.body, {
+        headers: res.headers,
+        status: res.status,
+        statusText: res.statusText
+      })
+    })
   ctx.request = new Request(import.meta.resolve(dest))
   ctx.url = new URL(ctx.request.url)
 })

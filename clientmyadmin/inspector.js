@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-import kv from './shared/kv.js'
+import { kv } from './shared/kv.js'
 import { Router } from './shared/itty-router.js'
 // import Alpine from './alpine.js'
 import { default as bootstrap } from 'https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/+esm'

@@ -13,7 +13,7 @@
     <p>You need grant privilege to read the "<span></span>" directory</p>
     <button id="$btn">Grant read access</button>
     <script type="module">
-      import kv from 'https://localwebcontainer.com/clientmyadmin/shared/kv.js'
+      import { kv } from 'https://localwebcontainer.com/clientmyadmin/shared/kv.js'
       const root = await kv('get', 'root')
       document.querySelector('span').textContent = root.name
       document.body.hidden = false

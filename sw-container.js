@@ -1,6 +1,6 @@
 import './clientmyadmin/event-handler.js'
 import { Router } from './itty-router.js'
-import kv from './clientmyadmin/shared/kv.js'
+import { kv } from './clientmyadmin/shared/kv.js'
 import fsa from './clientmyadmin/shared/fs.js'
 import mime from './clientmyadmin/mime/mod.js'
 import readzip, { Entry } from './clientmyadmin/shared/zip64/read.js'
@@ -12,6 +12,8 @@ import { html, isPlainObject } from './util.js'
 import parseRange from 'range-parser'
 
 globalThis.parseRange = parseRange
+
+console.log(kv)
 
 // import postcss from 'postcss'
 // import postcssNested from 'postcss-nested'
@@ -71,14 +73,15 @@ globalThis.fetch = async function fetch(...args) {
   const url = new URL(request.url)
   const destination = request.destination
 
-  root ??= await kv_default("get", "root")
+  root ??= await kv("get", "root")
   if (root?.type === "jsdelivr") {
-    root = await getOriginPrivateDirectory_default(jsdelivr, root.root)
+    root = await getDir(jsdelivr, root.root)
   }
+
   // root = { type: 'cors', url: 'http://localhost:8080' }
 
   if (url.href.startsWith(origin)) {
-    if (root.type === 'cors') {
+    if (root?.type === 'cors') {
       // this will fetch request going to: https://<subdomain>.localwebcontainer.com/...
       // to: https://enable-cors.org/...
 
@@ -110,7 +113,7 @@ globalThis.fetch = async function fetch(...args) {
     const pathname = url.pathname.replace(/^\/+/, '')
     /** @type {Map<string, Entry|File>} */
     const entries = new Map()
-    root ??= await kv('get', 'root')
+
     if (root?.type === 'jsdelivr') {
       root = await getDir(jsdelivr, root.root)
     }
@@ -189,7 +192,6 @@ globalThis.fetch = async function fetch(...args) {
       const url = new URL(pathname, base)
       return fetch(`${base}/${pathname}`)
     }
-
 
     // return new Response('Not Found.')
     return Response.redirect('/clientmyadmin')

@@ -1,4 +1,4 @@
-import kv from './shared/kv.js'
+import { kv } from './shared/kv.js'
 
 const sw = /** @type {ServiceWorkerGlobalScope & typeof globalThis} */ (globalThis)
 

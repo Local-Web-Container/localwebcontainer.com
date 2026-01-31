@@ -1,4 +1,4 @@
-import kv from './shared/kv.js'
+import { kv } from './shared/kv.js'
 
 const root = await kv('get', 'root')
 // globalThis.root = root

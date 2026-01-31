@@ -1,4 +1,4 @@
-import kv from './shared/kv.js'
+import { kv } from './shared/kv.js'
 import Alpine_ from 'https://cdn.jsdelivr.net/npm/@alpinejs/csp@3.14.9/dist/module.esm.js'
 import { showDirectoryPicker } from 'https://cdn.jsdelivr.net/npm/native-file-system-adapter@3.0.0/src/es6.js'
 

@@ -72,7 +72,7 @@ globalThis.fetch = async function fetch(...args) {
   const request = args[0]
   const url = new URL(request.url)
   const destination = request.destination
-
+  console.log('fetch', request.url)
   root ??= await kv("get", "root")
   if (root?.type === "jsdelivr") {
     root = await getDir(jsdelivr, root.root)
@@ -110,7 +110,9 @@ globalThis.fetch = async function fetch(...args) {
     // Request url goes to current subdomain
     // (https://<subdomain>.localwebcontainer.com)
 
+    // Remove all leading slashes
     const pathname = url.pathname.replace(/^\/+/, '')
+
     /** @type {Map<string, Entry|File>} */
     const entries = new Map()
 
@@ -193,8 +195,12 @@ globalThis.fetch = async function fetch(...args) {
       return fetch(`${base}/${pathname}`)
     }
 
+    if (pathname === 'favicon.ico') {
+      return Response.redirect(import.meta.resolve(`/clientmyadmin/favicon.png`), 302)
+    }
+
     // return new Response('Not Found.')
-    return Response.redirect('/clientmyadmin')
+    return Response.redirect('/clientmyadmin/index.html')
   }
 
   return origFetch(args[0])
@@ -254,7 +260,7 @@ const router = Router()
 let root
 
 router.get(
-  ctx => ['script', 'worker'].includes(ctx.request.destination),
+  ctx => false && ['script', 'worker'].includes(ctx.request.destination),
   async ctx => {
     const ext = ctx.url.pathname.split('.').pop()
 
@@ -341,7 +347,7 @@ router.get(o => o.url.searchParams.get('installFrom'), async (ctx) => {
 
 // Add trailing slash to clientmyadmin if not present
 router.get('/clientmyadmin', ctx => {
-  return Response.redirect('/clientmyadmin/', 302)
+  return Response.redirect('/clientmyadmin/index.html', 302)
 })
 
 router.get('/clientmyadmin/clients', async o => {
@@ -456,7 +462,7 @@ router.all(evt =>
 
 globalThis.router = router
 router.get(o =>
-  o.request.destination === 'style',
+  false && o.request.destination === 'style',
   async ctx => {
     // const { napi, Environment } = await shimport('https://cdn.jsdelivr.net/npm/napi-wasm')
     // const importObject = { env: napi };

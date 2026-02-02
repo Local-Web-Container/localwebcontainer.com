@@ -13,8 +13,6 @@ import parseRange from 'range-parser'
 
 globalThis.parseRange = parseRange
 
-console.log(kv)
-
 // import postcss from 'postcss'
 // import postcssNested from 'postcss-nested'
 const sw = /** @type {ServiceWorkerGlobalScope & typeof globalThis} */ (globalThis)

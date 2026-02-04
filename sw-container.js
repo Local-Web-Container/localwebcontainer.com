@@ -258,6 +258,11 @@ const router = Router()
 let root
 
 router.get(
+  ctx => ctx.request.destination === 'document' && ctx.url.pathname.endsWith('.js'),
+  ctx => fetch(base + '/clientmyadmin/vscode.html')
+)
+
+router.get(
   ctx => false && ['script', 'worker'].includes(ctx.request.destination),
   async ctx => {
     const ext = ctx.url.pathname.split('.').pop()

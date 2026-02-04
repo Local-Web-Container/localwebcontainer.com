@@ -15,50 +15,52 @@
 	</head>
 	<body>
 		<div id="container" style="width: 100%; height: 100%"></div>
-		<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.33.0/min/vs/loader.js"></script>
-		<script>
-			require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.33.0/min/vs' } });
+		<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js"></script>
+		<script type="module">
+			require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs' } });
       const container = document.getElementById('container')
 
-      require(["vs/editor/editor.main"], function () {
+      const blob = await fetch(location.href).then(res => res.blob())
+      const code = await blob.text()
+      const type = blob.type
+
+      require(["vs/editor/editor.main"], async function () {
         monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true)
-        var lang = 'typescript'
-        const code =
-        `import { key, value } from 'row:12'\n\n` +
-        `export {\n` +
-        `  key,\n` +
-        `  value\n` +
-        `}\n`
+        const lang = 'typescript'
 
-        var model = new monaco.editor.createModel(code, lang, monaco.Uri.from({path: "index.js"}))
-        var tsOp = monaco.languages.typescript.typescriptDefaults['getCompilerOptions']()
-        monaco.languages.typescript.typescriptDefaults.addExtraLib('const arr = [];')
+        const fileUri = monaco.Uri.parse(location.href);
+        // const modelRef = await monaco.editor.createModelReference(fileUri)
 
-        var tsOp = monaco.languages.typescript.typescriptDefaults['getCompilerOptions']();
+        const model = new monaco.editor.createModel(code, lang, monaco.Uri.parse(location.href))
+        const tsOp = monaco.languages.typescript.typescriptDefaults.getCompilerOptions()
+        // monaco.languages.typescript.typescriptDefaults.addExtraLib('const arr = [];')
+
         tsOp.allowJs = true;
         tsOp.checkJs = true;
         monaco.languages.typescript.typescriptDefaults.setCompilerOptions(tsOp);
 
-        window.editor = monaco.editor.create(container, {
+        monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+          noSemanticValidation: true,
+          // noSyntaxValidation: true
+        })
+
+        globalThis.editor = monaco.editor.create(container, {
           model,
           theme: 'vs-dark',
-          lineNumbers: 'off',
+          lineNumbers: 'on',
           wordWrap: 'off',
           overviewRulerLanes: 0,
           scrollbar: {
-              vertical:"hidden",
-              horizontal: "hidden",
-              handleMouseWheel:false,
+            vertical:"hidden",
+            horizontal: "hidden",
+            handleMouseWheel: true,
           },
           minimap: { enabled: false },
-          language: "javascript"
+          language: "typescript",
         })
 
-        window.onresize = function () {
-					editor.layout()
-				}
+        globalThis.onresize = () => editor.layout()
       })
-
 		</script>
 	</body>
 </html>

@@ -598,7 +598,6 @@ function renderTreeList(entries) {
         <meta charset="utf-8">
         <meta name='viewport' content='width=device-width, initial-scale=1'>
         <link rel="stylesheet" href="/clientmyadmin/style.css">
-        <script type="module" src="/clientmyadmin/prompt.js"></script>
         <style>body { margin: 20px; max-width: initial; }</style>
       </head>
       <body>

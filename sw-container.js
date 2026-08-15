@@ -162,7 +162,14 @@ globalThis.fetch = async function fetch(...args) {
           return renderTreeList(entries)
         }
       } catch (e) {
-        console.log(e)
+
+        // render 404.html if it exists in the root folder
+        const notFoundEntry = await fsa.open(root, '404.html').catch(() => null)
+        if (notFoundEntry?.kind === 'file') {
+          const file = await notFoundEntry.getFile()
+          return renderFile(file, args[0])
+        }
+
         return new Response('Not Found.', {
           status: 404,
           statusText: 'Not found',

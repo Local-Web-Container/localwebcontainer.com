@@ -1,1 +1,1 @@
-import 'http://localhost:4444/sw-container.min.js'
+import 'https://localwebcontainer.com/sw-container.min.js'

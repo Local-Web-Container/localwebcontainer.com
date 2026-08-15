@@ -823,12 +823,21 @@ function define (id, deps, factory) {
  * @param {string} url
  */
 async function load (url) {
-  return promises[url] ??= fetch(url)
-    .then(r => {
-      if (!r.ok) throw new Error(url + ' returned non ok response')
-      return r.text()
-    })
-    .then(text => evaluate(transform(text, url)))
+  return promises[url] ??= fetch(url).then(async response => {
+    const text = await response.text()
+
+    if (!response.ok) {
+      console.groupCollapsed("\u26A0\uFE0F Failed to load: " + url)
+      console.trace("Fetch stack trace:")
+      console.log("Status: " + response.status + " " + response.statusText)
+      console.log("Body: " + (text ? '' : 'null'))
+      text && console.log(text)
+      console.groupEnd()
+      throw new Error('Failed to load ' + url + '\nStatus: ' + response.status + ' ' + response.statusText + '\n' + text)
+    }
+
+    return text
+  }).then((text) => evaluate(transform(text, url)));
 }
 
 /** @param {string} code */

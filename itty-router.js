@@ -16,6 +16,28 @@ function Router({ routes = [] } = {}) {
       }
     }),
     routes,
+    matchAny (event, ctx = {}) {
+      let response
+      ctx.url = new URL(event.request.url)
+      ctx.event = event
+      ctx.request = event.request
+      ctx.match = undefined
+      ctx.response = {
+        status: 200,
+        headers: new Headers(),
+        body: null
+      }
+      ctx.metadata = {}
+      for (let [method, matcher, handlers] of routes) {
+        const matchMethod = method === 'ALL' || method === ctx.request.method
+        if (matchMethod && matcher(ctx)) {
+          return true
+        }
+      }
+
+      // All url that ain't for this subdomain should make a normal request
+      return false
+    },
     async handle (event, ctx = {}) {
       let response
       ctx.url = new URL(event.request.url)

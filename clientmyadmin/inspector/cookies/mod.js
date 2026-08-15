@@ -3,8 +3,6 @@ import relativeTime from '../../../scripts/relative-time.js'
 import hotkeys from '../hotkeys.js'
 import menu from '../menu.js'
 
-if (!globalThis.cookieStore) await import('../../../cookiestore.js')
-
 const main = document.querySelector('main')
 
 function renderDate (date) {
